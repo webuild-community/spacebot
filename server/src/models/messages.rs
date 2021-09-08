@@ -9,3 +9,8 @@ pub struct PlayerGameCommand {
 
 #[derive(Debug, Message)]
 pub struct ClientStop {}
+
+#[derive(Debug, Message)]
+pub enum ServerCommand {
+    Reset
+}

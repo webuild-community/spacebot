@@ -1,7 +1,7 @@
 use crate::{
     actors::ClientWsActor,
     game::{Game, TICKS_PER_SECOND},
-    models::messages::{ClientStop, PlayerGameCommand},
+    models::messages::{ClientStop, PlayerGameCommand, ServerCommand},
 };
 use actix::{Actor, Addr, AsyncContext, Context, Handler, Message};
 use futures::sync::oneshot;
@@ -29,6 +29,7 @@ pub enum GameLoopCommand {
     PlayerJoined(u32),
     PlayerLeft(u32),
     GameCommand(u32, GameCommand),
+    Reset,
 }
 
 impl GameActor {
@@ -81,6 +82,9 @@ fn game_loop(
                 GameLoopCommand::GameCommand(id, cmd) => {
                     game.handle_cmd(id, cmd);
                 },
+                GameLoopCommand::Reset => {
+                    game.reset();
+                }
             }
         }
 
@@ -215,6 +219,20 @@ impl Handler<GameState> for GameActor {
     fn handle(&mut self, msg: GameState, _ctx: &mut Self::Context) {
         for addr in self.connections.values().chain(self.spectators.iter()) {
             addr.do_send(ServerToClient::GameState(msg.clone()));
+        }
+    }
+}
+
+impl Handler<ServerCommand> for GameActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: ServerCommand, _ctx: &mut Self::Context) {
+        match msg {
+            ServerCommand::Reset => {
+                self.msg_tx
+                    .send(GameLoopCommand::Reset)
+                    .expect("The game loop should always be receiving commands");
+            }
         }
     }
 }

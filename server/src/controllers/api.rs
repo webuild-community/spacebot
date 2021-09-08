@@ -1,5 +1,8 @@
-use crate::{actors::ClientWsActor, AppState};
-use actix_web::{HttpRequest, Query, State};
+use crate::{
+    actors::ClientWsActor, AppState,
+    models::messages::ServerCommand,
+};
+use actix_web::{HttpRequest, Query, State, http::StatusCode};
 
 #[derive(Debug, Deserialize)]
 pub struct QueryString {
@@ -32,4 +35,11 @@ pub fn spectate_handler(
             "SPECTATOR".to_string(),
         ),
     )
+}
+
+pub fn reset_handler(
+    (_req, state): (HttpRequest<AppState>, State<AppState>),
+) -> Result<actix_web::HttpResponse, actix_web::Error> {
+    state.game_addr.do_send(ServerCommand::Reset);
+    Ok(actix_web::HttpResponse::with_body(StatusCode::OK, "done"))
 }

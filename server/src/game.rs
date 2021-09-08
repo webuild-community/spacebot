@@ -10,7 +10,7 @@ use tokyo::models::{
 const DEAD_PUNISH: Duration = Duration::from_secs(1);
 
 pub const TICKS_PER_SECOND: f32 = 30.0;
-const BOUNDS: (f32, f32) = (2880.0, 1920.0);
+const BOUNDS: (f32, f32) = (1200.0, 800.0);
 const MAX_CONCURRENT_BULLETS: usize = 4;
 
 // Time until you start accruing points for surviving
@@ -25,7 +25,7 @@ pub trait Triangle {
     fn angle(&self) -> f32;
     fn radius(&self) -> f32;
 
-    fn is_colliding(&self, other: &Triangle) -> bool {
+    fn is_colliding(&self, other: &dyn Triangle) -> bool {
         let d_x = other.x() - self.x();
         let d_y = other.y() - self.y();
         let d_r = other.radius() + self.radius();
@@ -86,6 +86,14 @@ impl Default for Game {
 }
 
 impl Game {
+    pub fn reset(&mut self) {
+        let mut new = Game::default();
+        for player in self.state.players.iter() {
+            new.add_player(player.id);
+        }
+        let _ = std::mem::replace(self, new);
+    }
+
     pub fn add_player(&mut self, player_id: u32) {
         let mut player = PlayerState::new(player_id);
         player.randomize(&mut self.rng, BOUNDS);

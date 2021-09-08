@@ -8,8 +8,8 @@ use crate::{
     condition::{Always, PlayerWithin},
     strategy::{PrioritizedBehavior, Strategy, StrategyNode},
 };
-use rand::{thread_rng, Rng};
 use std::time::Instant;
+use std::env;
 use tokyo::{
     self,
     analyzer::Analyzer,
@@ -37,7 +37,7 @@ impl Player {
             // keeps dodging.
             strategy: Strategy::new(vec![
                 (
-                    Box::new(PlayerWithin { radius: 100.0 }),
+                    Box::new(PlayerWithin { radius: 200.0 }),
                     Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_high(FireAt::new(
                         Target::Closest,
                     )))),
@@ -68,11 +68,9 @@ impl Handler for Player {
 }
 
 fn main() {
-    let mut rng = thread_rng();
-
     // TODO: Substitute with your API key and team name.
-    let api_key = &rng.gen::<u64>().to_string();
-    let team_name = &format!("PEACEFUL {}", rng.gen::<u8>());
+    let api_key = &env::var("API_KEY").unwrap_or("a".into());
+    let team_name = &env::var("TEAM_NAME").unwrap_or("a".into());
 
     println!("starting up...");
     tokyo::run(api_key, team_name, Player::new()).unwrap();

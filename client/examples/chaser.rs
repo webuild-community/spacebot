@@ -5,7 +5,7 @@
 /// the predefined behavior structs involve some more levels of abstraction,
 /// which you may or may not like. Please see the documentation in the `behavior`
 /// mod for more details.
-use rand::{thread_rng, Rng};
+use std::env;
 use std::time::Instant;
 use tokyo::{
     self,
@@ -22,16 +22,18 @@ struct Player {
 }
 
 fn chase() -> Box<Behavior> {
+    // Behavior to fire at the target player twice.
+    let fire_highest = FireAt::with_times(Target::HighestScore, 1);
     // Behavior to keep chasing the target (in this case, the player with
     // the highest score.) It yields to the next behavior when the distance
     // to the player is less than 200.0.
-    let chase = Chase { target: Target::HighestScore, distance: 200.0 };
+    let chase = Chase { target: Target::HighestScore, distance: 400.0 };
 
     // Behavior to fire at the target player twice.
-    let fire = FireAt::with_times(Target::HighestScore, 2);
+    let fire = FireAt::with_times(Target::HighestScore, 1);
 
     // A sequence of behaviors: chase and then fire.
-    Box::new(Sequence::with_slice(&[&chase, &fire]))
+    Box::new(Sequence::with_slice(&[&fire_highest, &chase, &fire]))
 }
 
 impl Handler for Player {
@@ -50,11 +52,8 @@ impl Handler for Player {
 }
 
 fn main() {
-    let mut rng = thread_rng();
-
-    // TODO: Substitute with your API key and team name.
-    let api_key = &rng.gen::<u64>().to_string();
-    let team_name = &format!("CHASER {}", rng.gen::<u8>());
+    let api_key = &env::var("API_KEY").unwrap_or("a".into());
+    let team_name = &env::var("TEAM_NAME").unwrap_or("a".into());
 
     println!("starting up...");
     tokyo::run(api_key, team_name, Player::default()).unwrap();

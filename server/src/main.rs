@@ -59,9 +59,12 @@ fn main() -> Result<(), String> {
             .resource("/spectate", |r| {
                 r.method(Method::GET).with(controllers::api::spectate_handler);
             })
+            .resource("/reset", |r| {
+                r.method(Method::GET).with(controllers::api::reset_handler);
+            })
             .handler(
                 "/",
-                actix_web::fs::StaticFiles::new("../spectator/").unwrap().index_file("index.html"),
+                actix_web::fs::StaticFiles::new("./spectator/").unwrap().index_file("index.html"),
             )
             .resource("/{tail:.*}j", |r| {
                 r.method(Method::GET).with(controllers::common::index_handler)

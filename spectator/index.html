@@ -75,7 +75,7 @@
             }
             var team_names = {};
 
-            var ctx = c.getContext("2d", { alpha: false });
+            var ctx = c.getContext("2d");
 
             function connect(handler) {
                 websocket_status.innerText = "connecting...";
@@ -129,6 +129,7 @@
                     ctx.translate(this.x, this.y);
                     ctx.rotate(this.angle - Math.PI / 2.0);
 
+
                     // draw the ship triangle
                     ctx.beginPath();
                     ctx.moveTo(-SHIP_SIZE*0.8, -SHIP_SIZE);
@@ -138,9 +139,16 @@
                     ctx.fill();
                     ctx.stroke();
 
+                    let oldFill = ctx.fillStyle;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, 2*Math.PI);
+                    ctx.fillStyle = "#e05d5d";
+                    ctx.fill();
+                    ctx.fillStyle = oldFill;
+
                     // draw team name
                     ctx.rotate(-this.angle + Math.PI / 2.0); // please don't ask me about this math
-                    const oldFill = ctx.fillStyle;
+                    oldFill = ctx.fillStyle;
                     ctx.font = '32px monospace';
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'top';
@@ -176,13 +184,14 @@
 
                 draw(ctx) {
                     ctx.translate(this.x, this.y);
-                    ctx.rotate(this.angle);
+
+                    let oldFill = ctx.fillStyle;
                     ctx.beginPath();
-                    ctx.moveTo(-BULLET_SIZE, -BULLET_SIZE);
-                    ctx.lineTo(0, BULLET_SIZE);
-                    ctx.lineTo(BULLET_SIZE, -BULLET_SIZE);
-                    ctx.lineTo(-BULLET_SIZE, -BULLET_SIZE);
-                    ctx.stroke();
+                    ctx.arc(0, 0, 2, 0, 2*Math.PI);
+                    ctx.fillStyle = "#e05d5d";
+                    ctx.fill();
+                    ctx.fillStyle = oldFill;
+
                     ctx.setTransform(1, 0, 0, 1, 0, 0);
                 }
             }
