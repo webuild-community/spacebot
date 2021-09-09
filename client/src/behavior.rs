@@ -89,16 +89,16 @@ pub trait Behavior: Send + Debug {
 
     // `Clone` does not work nicely with `Box` yet, so you'll need to implement
     // this method manually for each struct.
-    fn box_clone(&self) -> Box<Behavior>;
+    fn box_clone(&self) -> Box<dyn Behavior>;
 }
 
-impl Clone for Box<Behavior> {
+impl Clone for Box<dyn Behavior> {
     fn clone(&self) -> Self {
         self.box_clone()
     }
 }
 
-impl Default for Box<Behavior> {
+impl Default for Box<dyn Behavior> {
     fn default() -> Self {
         Box::new(Skip {})
     }
@@ -109,7 +109,7 @@ impl Default for Box<Behavior> {
 /// then it moves to the second `Behavior`, and so forth.
 #[derive(Clone, Debug)]
 pub struct Sequence {
-    inner: VecDeque<Box<Behavior>>,
+    inner: VecDeque<Box<dyn Behavior>>,
 }
 
 impl Behavior for Sequence {
@@ -123,7 +123,7 @@ impl Behavior for Sequence {
         None
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -133,7 +133,7 @@ impl Sequence {
         Sequence::with_slice(&[])
     }
 
-    pub fn with_slice(behaviors: &[&Behavior]) -> Self {
+    pub fn with_slice(behaviors: &[&dyn Behavior]) -> Self {
         Self { inner: behaviors.into_iter().map(|b| b.box_clone()).collect::<VecDeque<_>>() }
     }
 }
@@ -147,7 +147,7 @@ impl Behavior for Skip {
         None
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -162,7 +162,7 @@ impl Behavior for Noop {
         Some(GameCommand::Rotate(analyzer.own_player().angle.positive().get()))
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -183,7 +183,7 @@ impl Behavior for Throttle {
         }
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -228,7 +228,7 @@ impl Behavior for MoveTo {
         .next_command(analyzer)
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -250,7 +250,7 @@ impl Behavior for Rotate {
         }
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -281,7 +281,7 @@ impl Behavior for Fire {
         }
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -338,7 +338,7 @@ impl Behavior for FireAt {
         None
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -371,7 +371,7 @@ impl Behavior for Random {
         }
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -402,7 +402,7 @@ impl Behavior for Chase {
         None
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }
@@ -423,7 +423,7 @@ impl Behavior for Dodge {
         }
     }
 
-    fn box_clone(&self) -> Box<Behavior> {
+    fn box_clone(&self) -> Box<dyn Behavior> {
         Box::new(self.clone())
     }
 }

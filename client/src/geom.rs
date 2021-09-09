@@ -41,18 +41,18 @@ pub trait PointExt {
     fn point(&self) -> &Point;
 
     /// Returns the distance between this and the given points.
-    fn distance(&self, other: &PointExt) -> f32 {
+    fn distance(&self, other: &dyn PointExt) -> f32 {
         (*other.point() - *self.point()).length()
     }
 
     /// Returns the angle of the line connecting this point to the given point.
-    fn angle_to(&self, other: &PointExt) -> Radian {
+    fn angle_to(&self, other: &dyn PointExt) -> Radian {
         (*other.point() - *self.point()).angle_from_x_axis()
     }
 
     /// Returns the velocity at which one travels from this point to the given
     /// point for the amount of time `dt`.
-    fn velocity_to(&self, other: &PointExt, dt: Duration) -> Vector {
+    fn velocity_to(&self, other: &dyn PointExt, dt: Duration) -> Vector {
         (*other.point() - *self.point()) / dt.as_secs_f32()
     }
 

@@ -18,10 +18,10 @@ use tokyo::{
 #[derive(Default)]
 struct Player {
     analyzer: Analyzer,
-    current_behavior: Box<Behavior>,
+    current_behavior: Box<dyn Behavior>,
 }
 
-fn chase() -> Box<Behavior> {
+fn chase() -> Box<dyn Behavior> {
     // Behavior to fire at the target player twice.
     let fire_highest = FireAt::with_times(Target::HighestScore, 1);
     // Behavior to keep chasing the target (in this case, the player with

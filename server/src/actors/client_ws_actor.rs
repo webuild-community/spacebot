@@ -63,6 +63,10 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for ClientWsActor {
                 }
             },
             ws::Message::Close(_) => {
+                self.game_addr.do_send(crate::actors::game_actor::SocketEvent::Leave(
+                    self.api_key.clone(),
+                    ctx.address(),
+                ));
                 ctx.stop();
             },
             _ => {},
