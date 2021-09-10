@@ -107,7 +107,8 @@ Through WebSocket, a client can send action commands to control their ship.
 | e | Event information "rotate" |
 | data | Set the radian value that the ship will head. Value's between [0, 2π] |
 
-![Radian example](https://www.mathmistakes.info/facts/TrigFacts/learn/images/ucar.gif)
+![Radian example](https://flylib.com/books/3/315/1/html/2/images/figu345_1.jpg)
+
 ### 3.2. Throttle
 
 Set the speed of your ship. Your ship starts to move forward with a new speed.
