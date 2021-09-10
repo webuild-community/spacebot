@@ -123,8 +123,8 @@ class Bullet {
 
                 let oldFill = ctx.fillStyle;
                 ctx.beginPath();
-                ctx.arc(0, 0, 2, 0, 2 * Math.PI);
-                ctx.fillStyle = "#e05d5d";
+                ctx.arc(0, 0, 4, 0, 4 * Math.PI);
+                ctx.fillStyle = "#f9ca24";
                 ctx.fill();
                 ctx.fillStyle = oldFill;
 
