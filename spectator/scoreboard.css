@@ -1,7 +1,7 @@
 #scoreboard {
   font-size: 18px;
   display: block;
-  position: absolute;
+  position: fixed;
   top: 10px;
   right: 10px;
   opacity: 0.7;
