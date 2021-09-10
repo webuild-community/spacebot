@@ -2,15 +2,11 @@ use std::time::Instant;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 use std::collections::HashSet;
-use tokyo::models::{
-    BulletState, DeadPlayer, GameCommand, GameState, PlayerState, BULLET_RADIUS, BULLET_SPEED,
-    PLAYER_BASE_SPEED, PLAYER_RADIUS,
-};
+use tokyo::models::{BULLET_RADIUS, BULLET_SPEED, BulletState, DeadPlayer, GameCommand, GameConfig, GameState, PLAYER_BASE_SPEED, PLAYER_RADIUS, PlayerState};
 
 const DEAD_PUNISH: Duration = Duration::from_secs(1);
 
 pub const TICKS_PER_SECOND: f32 = 30.0;
-const BOUNDS: (f32, f32) = (1200.0, 800.0);
 const MAX_CONCURRENT_BULLETS: usize = 4;
 
 // Time until you start accruing points for surviving
@@ -73,21 +69,26 @@ impl Triangle for BulletState {
 }
 
 pub struct Game {
+    config: GameConfig,
     pub state: GameState,
     rng: rand::rngs::ThreadRng,
     bullet_id_counter: u32,
     survival_times: HashMap<u32, Instant>,
 }
 
-impl Default for Game {
-    fn default() -> Self {
-        Self { state: GameState::new(BOUNDS), rng: Default::default(), bullet_id_counter: 0, survival_times: HashMap::new() }
-    }
-}
-
 impl Game {
+    pub fn new(config: GameConfig) -> Self {
+        Self {
+            state: GameState::new((config.bound_x, config.bound_y)),
+            rng: Default::default(),
+            bullet_id_counter: 0,
+            survival_times: HashMap::new(),
+            config,
+        }
+    }
+
     pub fn reset(&mut self) {
-        let mut new = Game::default();
+        let mut new = Game::new(self.config);
         for player in self.state.players.iter() {
             new.add_player(player.id);
         }
@@ -97,9 +98,14 @@ impl Game {
         let _ = std::mem::replace(self, new);
     }
 
+    fn bounds(&self) -> (f32, f32) {
+        (self.config.bound_x, self.config.bound_y)
+    }
+
     pub fn add_player(&mut self, player_id: u32) {
         let mut player = PlayerState::new(player_id);
-        player.randomize(&mut self.rng, BOUNDS);
+        let bounds = self.bounds();
+        player.randomize(&mut self.rng, bounds);
         self.state.players.push(player);
         self.survival_times.insert(player_id, Instant::now() + Duration::from_secs(SURVIVAL_TIMEOUT));
     }
@@ -192,16 +198,19 @@ impl Game {
             player.y += vel_y * PLAYER_BASE_SPEED * player.throttle * dt;
 
             // Keep the players in bounds
-            player.x = player.x.max(PLAYER_RADIUS).min(BOUNDS.0 - PLAYER_RADIUS);
-            player.y = player.y.max(PLAYER_RADIUS).min(BOUNDS.1 - PLAYER_RADIUS);
+            player.x = player.x.max(PLAYER_RADIUS).min(self.config.bound_x - PLAYER_RADIUS);
+            player.y = player.y.max(PLAYER_RADIUS).min(self.config.bound_y - PLAYER_RADIUS);
         }
 
+        let bounds = self.bounds();
+        let bound_x = bounds.0;
+        let bound_y = bounds.1;
         // Remove out-of-bound bullets
         self.state.bullets.retain(|b| {
             b.x > (BULLET_RADIUS)
-                && b.x < (BOUNDS.0 + BULLET_RADIUS)
+                && b.x < (bound_x + BULLET_RADIUS)
                 && b.y > (BULLET_RADIUS)
-                && b.y < (BOUNDS.1 + BULLET_RADIUS)
+                && b.y < (bound_y + BULLET_RADIUS)
         });
 
         // count collisions
@@ -216,7 +225,7 @@ impl Game {
         }
 
         for mut player in self.state.players.drain_filter(|player| dead_players.contains(&player.id)) {
-            player.randomize(&mut self.rng, BOUNDS);
+            player.randomize(&mut self.rng, bounds);
             self.state
                 .dead
                 .push(DeadPlayer { respawn: SystemTime::now() + DEAD_PUNISH, player });
@@ -225,6 +234,8 @@ impl Game {
         // count the dead
         let mut hits = vec![];
         let mut used_bullets = vec![];
+        let bounds = self.bounds();
+
         for bullet in &mut self.state.bullets {
             let deceased = self.state.players.drain_filter(|player| {
                 if player.is_colliding(bullet) && bullet.player_id != player.id {
@@ -244,7 +255,7 @@ impl Game {
                 // Reset their survival time bonus
                 self.survival_times.insert(player.id, Instant::now() + Duration::from_secs(SURVIVAL_TIMEOUT));
 
-                player.randomize(&mut self.rng, BOUNDS);
+                player.randomize(&mut self.rng, bounds);
                 self.state
                     .dead
                     .push(DeadPlayer { respawn: SystemTime::now() + DEAD_PUNISH, player });

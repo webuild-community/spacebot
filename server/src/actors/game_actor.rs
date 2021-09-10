@@ -22,6 +22,7 @@ pub struct GameActor {
     msg_rx: Option<Receiver<GameLoopCommand>>,
     player_id_counter: u32,
     api_key_to_player_id: HashMap<String, u32>,
+    game_config: GameConfig,
 }
 
 #[derive(Debug)]
@@ -33,7 +34,7 @@ pub enum GameLoopCommand {
 }
 
 impl GameActor {
-    pub fn new() -> GameActor {
+    pub fn new(config: GameConfig) -> GameActor {
         let (msg_tx, msg_rx) = channel();
 
         GameActor {
@@ -45,6 +46,7 @@ impl GameActor {
             msg_rx: Some(msg_rx),
             player_id_counter: 0,
             api_key_to_player_id: HashMap::new(),
+            game_config: config,
         }
     }
 }
@@ -53,10 +55,11 @@ fn game_loop(
     game_actor: Addr<GameActor>,
     msg_chan: Receiver<GameLoopCommand>,
     mut cancel_chan: oneshot::Receiver<()>,
+    config: GameConfig,
 ) {
     let mut loop_helper = LoopHelper::builder().build_with_target_rate(TICKS_PER_SECOND);
 
-    let mut game = Game::default();
+    let mut game = Game::new(config);
 
     game.init();
 
@@ -114,8 +117,9 @@ impl Actor for GameActor {
         // to the game loop thread
         let msg_rx = self.msg_rx.take().unwrap();
 
+        let config = self.game_config;
         std::thread::spawn(move || {
-            game_loop(addr, msg_rx, cancel_rx);
+            game_loop(addr, msg_rx, cancel_rx, config);
         });
 
         self.cancel_chan = Some(cancel_tx);
