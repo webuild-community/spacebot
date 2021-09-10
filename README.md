@@ -13,5 +13,5 @@ docker build -t ledongthuc/tokyo-rs:latest .;
 New file `.env`
 
 ```
-docker run -it -p 8091:8080 -e RUST_BACKTRACE=1 -v /Users/ledongthuc/Projects/tokyo-rs/.env:/app/.env ledongthuc/tokyo-rs:latest
+docker run -it -p 8091:8080 -e RUST_BACKTRACE=1 ledongthuc/tokyo-rs:latest
 ```
