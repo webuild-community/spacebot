@@ -1,11 +1,12 @@
 const SHIP_SIZE = 18;
 const BULLET_SIZE = 3;
 var websocket_status = document.getElementById("websocket-status");
-var chart = document.getElementById("scoreboard");
+var scoreboard = document.getElementById("scoreboard");
+var scoreboard_chart = document.getElementById("chart");
 var c = document.getElementById("canvas");
-window.onload = window.onresize = function() {
-        c.width = document.body.clientWidth; //document.width is obsolete
-        c.height = document.body.clientHeight; //document.height is obsolete
+window.onload = window.onresize = function () {
+        c.width = document.body.clientWidth - 100; //document.width is obsolete
+        c.height = document.body.clientHeight - 100; //document.height is obsolete
 }
 var team_names = {};
 
@@ -16,26 +17,26 @@ function connect(handler) {
         websocket_status.style.borderColor = "gray";
 
         const socket = new WebSocket(`ws://${window.location.host}/spectate`);
-        socket.addEventListener('open', function(event) {
+        socket.addEventListener('open', function (event) {
                 websocket_status.innerText = "connected";
                 websocket_status.style.borderColor = "white";
         });
 
-        socket.addEventListener('close', function(event) {
+        socket.addEventListener('close', function (event) {
                 websocket_status.innerText = "disconnected";
                 websocket_status.style.borderColor = "orange";
-                setTimeout(function() {
+                setTimeout(function () {
                         connect(handler);
                 }, 1000);
         });
 
-        socket.addEventListener('error', function(event) {
+        socket.addEventListener('error', function (event) {
                 websocket_status.innerText = "error!";
                 websocket_status.style.borderColor = "red";
                 socket.close();
         });
 
-        socket.addEventListener('message', function(event) {
+        socket.addEventListener('message', function (event) {
                 let json = JSON.parse(event.data);
                 handler(json);
         });
@@ -59,6 +60,7 @@ class Ship {
         }
 
         draw(ctx) {
+                ctx.save()
                 // orient the ship
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle - Math.PI / 2.0);
@@ -94,7 +96,7 @@ class Ship {
                 ctx.fillStyle = oldFill;
 
                 // reset transformation
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.restore();
         }
 }
 
@@ -117,6 +119,7 @@ class Bullet {
         }
 
         draw(ctx) {
+                ctx.save()
                 ctx.translate(this.x, this.y);
 
                 let oldFill = ctx.fillStyle;
@@ -126,40 +129,29 @@ class Bullet {
                 ctx.fill();
                 ctx.fillStyle = oldFill;
 
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-        }
-}
-
-function draw_scoreboard(scoreboard) {
-        var sorted_players = Object.keys(scoreboard).sort(function(a, b) { return scoreboard[b] - scoreboard[a] });
-        chart.innerHTML = "";
-        for (let i = 0; i < sorted_players.length; i++) {
-          const player_id = sorted_players[i];
-          const player_score = String(scoreboard[player_id]).padEnd(3);
-          const team_name = team_names[player_id];
-          chart.innerHTML += `
-            <tr class="rank-${i + 1}">
-              <td class="rank">${i + 1}</span>
-              <td class="name">${team_name}</span>
-              <td class="score">${player_score}</span>
-            </tr>`;
+                ctx.restore();
         }
 }
 
 var last_drawn_scoreboard = {};
-connect(function(json) {
+var initCanvas = false;
+connect(function (json) {
         if (json.e === "teamnames") {
                 team_names = json.data;
         } else if (json.e === "state") {
                 const data = json.data;
-
+                ctx.save()
                 ctx.clearRect(0, 0, c.width, c.height);
                 ctx.strokeStyle = "#ffffff";
                 ctx.lineWidth = 1;
                 ctx.lineCap = "square";
                 ctx.lineJoin = "bevel";
 
-                // Draw the arena bounds
+                scaleXRatio = c.width / data.bounds[0];
+                scaleYRatio = c.height / data.bounds[0];
+                scaleRatio = Math.min(scaleXRatio, scaleYRatio);
+                ctx.transform(scaleRatio, 0, 0, scaleRatio, 0, 0);
+
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(data.bounds[0], 0);
@@ -175,6 +167,7 @@ connect(function(json) {
                 for (const bullet of data.bullets) {
                         new Bullet(bullet).draw(ctx);
                 }
+                ctx.restore()
 
                 if (JSON.stringify(data.scoreboard) !== JSON.stringify(last_drawn_scoreboard)) {
                         draw_scoreboard(data.scoreboard);
@@ -182,3 +175,19 @@ connect(function(json) {
                 }
         }
 });
+
+function draw_scoreboard(scoreboard) {
+        var sorted_players = Object.keys(scoreboard).sort(function (a, b) { return scoreboard[b] - scoreboard[a] });
+        chart.innerHTML = "";
+        for (let i = 0; i < sorted_players.length; i++) {
+                const player_id = sorted_players[i];
+                const player_score = String(scoreboard[player_id]).padEnd(3);
+                const team_name = team_names[player_id];
+                chart.innerHTML += `
+            <tr class="rank-${i + 1}">
+              <td class="rank">${i + 1}</span>
+              <td class="name">${team_name}</span>
+              <td class="score">${player_score}</span>
+            </tr>`;
+        }
+}
