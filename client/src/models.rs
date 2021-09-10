@@ -41,17 +41,24 @@ pub enum ServerToClient {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum DoA {
+    Alive,
+    DeadAt(SystemTime)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PlayerState {
     pub id: u32,
     pub angle: f32,
     pub throttle: f32,
     pub x: f32,
     pub y: f32,
+    pub doa: DoA,
 }
 
 impl PlayerState {
     pub fn new(id: u32) -> Self {
-        Self { id, angle: 0f32, throttle: 0f32, x: 0f32, y: 0f32 }
+        Self { id, angle: 0f32, throttle: 0f32, x: 0f32, y: 0f32, doa: DoA::Alive }
     }
 
     pub fn randomize(&mut self, rng: &mut impl rand::Rng, (bound_right, bound_bottom): (f32, f32)) {

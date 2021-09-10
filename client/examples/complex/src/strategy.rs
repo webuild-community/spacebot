@@ -10,7 +10,7 @@ pub struct Strategy {
 }
 
 impl Strategy {
-    pub fn new(branches: Vec<(Box<Condition>, Box<StrategyNode>)>) -> Self {
+    pub fn new(branches: Vec<(Box<dyn Condition>, Box<StrategyNode>)>) -> Self {
         Self { tree: StrategyNode::Branch(branches) }
     }
 
@@ -21,7 +21,7 @@ impl Strategy {
 
 #[derive(Debug)]
 pub enum StrategyNode {
-    Branch(Vec<(Box<Condition>, Box<StrategyNode>)>),
+    Branch(Vec<(Box<dyn Condition>, Box<StrategyNode>)>),
     Leaf(PrioritizedBehavior),
 }
 
@@ -52,7 +52,7 @@ pub enum Priority {
 #[derive(Clone, Debug)]
 pub struct PrioritizedBehavior {
     pub priority: Priority,
-    pub behavior: Box<Behavior>,
+    pub behavior: Box<dyn Behavior>,
 }
 
 impl PrioritizedBehavior {

@@ -91,6 +91,9 @@ impl Game {
         for player in self.state.players.iter() {
             new.add_player(player.id);
         }
+        for corpse in self.state.dead.iter() {
+            new.add_player(corpse.player.id);
+        }
         let _ = std::mem::replace(self, new);
     }
 
@@ -104,8 +107,11 @@ impl Game {
     pub fn player_left(&mut self, player_id: u32) {
         info!("Player {} left!", player_id);
 
-        if let Some(player) = self.state.players.iter_mut().find(|p| p.id == player_id) {
-            player.throttle = 0.0;
+        if let Some(idx) = self.state.players.iter().position(|p| p.id == player_id) {
+            self.state.players.remove(idx);
+        }
+        if let Some(idx) = self.state.dead.iter().position(|p| p.player.id == player_id) {
+            self.state.dead.remove(idx);
         }
 
         self.survival_times.remove(&player_id);
