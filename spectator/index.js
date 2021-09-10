@@ -1,12 +1,11 @@
 const SHIP_SIZE = 18;
 const BULLET_SIZE = 3;
 var websocket_status = document.getElementById("websocket-status");
-var scoreboard = document.getElementById("scoreboard");
-var scoreboard_chart = document.getElementById("chart");
+var chart = document.getElementById("scoreboard");
 var c = document.getElementById("canvas");
 window.onload = window.onresize = function () {
-        c.width = document.body.clientWidth - 100; //document.width is obsolete
-        c.height = document.body.clientHeight - 100; //document.height is obsolete
+        c.width = document.body.clientWidth; //document.width is obsolete
+        c.height = document.body.clientHeight; //document.height is obsolete
 }
 var team_names = {};
 
