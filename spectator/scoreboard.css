@@ -1,11 +1,24 @@
 #scoreboard {
   font-size: 18px;
-  display: block;
-  position: fixed;
-  top: 10px;
-  right: 10px;
   opacity: 0.7;
+  margin: 10px;
 }
+
+#scoreboard-container {
+  height: 100%;
+  position: fixed;
+  right: 0;
+  top: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+#scoreboard-container::-webkit-scrollbar {
+    width: 0;  /* Remove scrollbar space */
+    background: transparent;  /* Optional: just make scrollbar invisible */
+}
+
 #scoreboard .rank::before {
   content: '#'
 }
@@ -13,11 +26,12 @@
   text-align: right;
 }
 #scoreboard .rank {
-  min-width: 40px;
+  padding-right: 10px;
 }
 
 #scoreboard .name {
   min-width: 150px;
+  padding-right: 10px;
 }
 
 #scoreboard .rank-1 * {

@@ -177,16 +177,18 @@ connect(function (json) {
 
 function draw_scoreboard(scoreboard) {
         var sorted_players = Object.keys(scoreboard).sort(function (a, b) { return scoreboard[b] - scoreboard[a] });
-        chart.innerHTML = "";
+        var tableHtml = "<tbody>";
+
         for (let i = 0; i < sorted_players.length; i++) {
                 const player_id = sorted_players[i];
                 const player_score = String(scoreboard[player_id]).padEnd(3);
                 const team_name = team_names[player_id];
-                chart.innerHTML += `
+                tableHtml += `
             <tr class="rank-${i + 1}">
-              <td class="rank">${i + 1}</span>
-              <td class="name">${team_name}</span>
-              <td class="score">${player_score}</span>
+              <td class="rank">${i + 1}</td>
+              <td class="name">${team_name}</td>
+              <td class="score">${player_score}</td>
             </tr>`;
         }
+        chart.innerHTML = tableHtml + "</tbody>";
 }
