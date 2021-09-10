@@ -127,6 +127,13 @@ impl Analyzer {
         self.other_players().filter(move |player| self.own_player().distance(*player) <= radius)
     }
 
+    /// Returns an `Iterator` of `Player`s whose current location is within
+    /// the `radius` of your own `Player`.
+    pub fn players_within_colliding<'a>(&'a self, radius: f32, during: Duration) -> impl Iterator<Item = &'a Player> {
+        self.players_within(radius)
+            .filter(move |player| self.own_player().is_colliding_during(*player, during.clone()))
+    }
+
     /// Returns an `Iterator` of `Bullet`s that are shot by you and are still
     /// inside the arena. You can have at most 4 bullets at a time.
     pub fn own_bullets<'a>(&'a self) -> impl Iterator<Item = &'a Bullet> {
@@ -143,7 +150,14 @@ impl Analyzer {
     /// within the `duration`, if you stayed at the current position.
     pub fn bullets_colliding<'a>(&'a self, during: Duration) -> impl Iterator<Item = &'a Bullet> {
         self.other_bullets()
-            .filter(move |bullet| self.own_player().is_colliding_during(bullet, during.clone()))
+            .filter(move |bullet| self.own_player().is_colliding_during(*bullet, during.clone()))
+    }
+
+    /// Returns an `Iterator` of `Bullet`s that your `Player` would be colliding
+    /// within the `duration`, if you stayed at the current position.
+    pub fn bullets_within_colliding<'a>(&'a self, radius: f32, during: Duration) -> impl Iterator<Item = &'a Bullet> {
+        self.bullets_within(radius)
+            .filter(move |bullet| self.own_player().is_colliding_during(*bullet, during.clone()))
     }
 
     /// Returns an `Iterator` of `Bullet`s that are shot by other `Player`s and

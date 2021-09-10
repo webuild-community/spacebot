@@ -1,7 +1,7 @@
 use crate::{
-    analyzer::{bullet::Bullet, ANALYSIS_INTERVAL},
+    analyzer::ANALYSIS_INTERVAL,
     geom::*,
-    models::{PlayerState, BULLET_RADIUS, PLAYER_BASE_SPEED, PLAYER_MIN_THROTTLE, PLAYER_RADIUS},
+    models::{PlayerState, PLAYER_BASE_SPEED, PLAYER_MIN_THROTTLE, PLAYER_RADIUS},
 };
 use std::{
     collections::HashMap,
@@ -70,16 +70,16 @@ impl Player {
 
     /// Returns whether the `Player` will be colliding the given `Bullet` at a
     /// particular time in the future, specified by `interval`.
-    pub fn is_colliding_at(&self, bullet: &Bullet, interval: Duration) -> bool {
-        self.project(interval).distance(&bullet.project(interval)) < BULLET_RADIUS + PLAYER_RADIUS
+    pub fn is_colliding_at<M: Moving>(&self, target: &M, interval: Duration) -> bool {
+        self.project(interval).distance(&target.project(interval)) < M::RADIUS + PLAYER_RADIUS
     }
 
     /// Returns whether the `Player` will be colliding the given `Bullet` during
     /// the given `interval`.
-    pub fn is_colliding_during(&self, bullet: &Bullet, interval: Duration) -> bool {
+    pub fn is_colliding_during<M: Moving>(&self, target: &M, interval: Duration) -> bool {
         let num_analysis = (interval.as_millis() / ANALYSIS_INTERVAL.as_millis()) as u32;
         (1..=num_analysis)
-            .map(|tick| self.is_colliding_at(bullet, ANALYSIS_INTERVAL * tick))
+            .map(|tick| self.is_colliding_at(target, ANALYSIS_INTERVAL * tick))
             .any(|hit| hit)
     }
 }
@@ -114,7 +114,9 @@ impl VectorExt for Player {
     }
 }
 
-impl Moving for Player {}
+impl Moving for Player {
+    const RADIUS: f32 = PLAYER_RADIUS;
+}
 
 /// `Trajectory` contains the past positions of a `Player`. You may want to use
 /// it to infer the move behavior and logic of a `Player` of your interest.

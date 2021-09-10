@@ -22,6 +22,16 @@ pub struct And<T1: Debug, T2: Debug> {
     rhs: T2,
 }
 
+
+impl<T1: Condition + Debug, T2: Condition + Debug> And<T1, T2> {
+    pub fn new(lhs: T1, rhs: T2) -> Self {
+        Self {
+            lhs,
+            rhs,
+        }
+    }
+}
+
 impl<T1: Condition + Debug, T2: Condition + Debug> Condition for And<T1, T2> {
     fn evaluate(&mut self, analyzer: &Analyzer) -> bool {
         self.lhs.evaluate(analyzer) && self.rhs.evaluate(analyzer)
@@ -43,6 +53,12 @@ impl<T1: Condition + Debug, T2: Condition + Debug> Condition for Or<T1, T2> {
 #[derive(Debug)]
 pub struct Not<T: Debug> {
     inner: T,
+}
+
+impl<T: Condition + Debug> Not<T> {
+    pub fn new(inner: T) -> Self {
+        Self { inner }
+    }
 }
 
 impl<T: Condition + Debug> Condition for Not<T> {

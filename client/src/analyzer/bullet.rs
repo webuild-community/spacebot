@@ -1,7 +1,4 @@
-use crate::{
-    geom::*,
-    models::{BulletState, BULLET_SPEED},
-};
+use crate::{geom::*, models::{BULLET_RADIUS, BULLET_SPEED, BulletState}};
 
 /// `Bullet` struct contains the past and the current states of a single bullet
 /// identified by an ID. You will usually be accessing `Bullet`s through the
@@ -48,4 +45,6 @@ impl VectorExt for Bullet {
     }
 }
 
-impl Moving for Bullet {}
+impl Moving for Bullet {
+    const RADIUS: f32 = BULLET_RADIUS;
+}
