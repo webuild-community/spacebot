@@ -196,6 +196,7 @@ impl Handler<SocketEvent> for GameActor {
                                     .expect("The game loop should always be receiving commands");
                             }
 
+                            self.api_key_to_player_id.remove(&api_key);
                             self.connections.remove(&api_key);
                         }
                     }

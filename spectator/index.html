@@ -51,7 +51,7 @@
     </style>
     </head>
     <body>
-        <canvas id="canvas" width="1200" height="800" style="border:1px solid #000000; background: #000;">
+        <canvas id="canvas" width="1600" height="1000" style="border:1px solid #000000; background: #000;">
         </canvas>
 
         <div id="scoreboard">
@@ -70,8 +70,8 @@
             var scoreboard_chart = document.getElementById("chart");
             var c = document.getElementById("canvas");
             window.onload = window.onresize = function() {
-                c.width = document.body.clientWidth; //document.width is obsolete
-                c.height = document.body.clientHeight; //document.height is obsolete
+                c.width = document.body.clientWidth - 100; //document.width is obsolete
+                c.height = document.body.clientHeight - 100; //document.height is obsolete
             }
             var team_names = {};
 
@@ -125,6 +125,7 @@
                 }
 
                 draw(ctx) {
+                    ctx.save()
                     // orient the ship
                     ctx.translate(this.x, this.y);
                     ctx.rotate(this.angle - Math.PI / 2.0);
@@ -160,7 +161,7 @@
                     ctx.fillStyle = oldFill;
 
                     // reset transformation
-                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.restore();
                 }
             }
 
@@ -183,6 +184,7 @@
                 }
 
                 draw(ctx) {
+                    ctx.save()
                     ctx.translate(this.x, this.y);
 
                     let oldFill = ctx.fillStyle;
@@ -192,24 +194,29 @@
                     ctx.fill();
                     ctx.fillStyle = oldFill;
 
-                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.restore();
                 }
             }
 
             var last_drawn_scoreboard = {};
+            var initCanvas = false;
             connect(function (json) {
                 if (json.e === "teamnames") {
                     team_names = json.data;
                 } else if (json.e === "state") {
                     const data = json.data;
-
+                    ctx.save()
                     ctx.clearRect(0, 0, c.width, c.height);
                     ctx.strokeStyle = "#ffffff";
                     ctx.lineWidth = 1;
                     ctx.lineCap = "square";
                     ctx.lineJoin = "bevel";
 
-                    // Draw the arena bounds
+                    scaleXRatio = c.width / data.bounds[0];
+                    scaleYRatio = c.height / data.bounds[0];
+                    scaleRatio = Math.min(scaleXRatio, scaleYRatio);
+                    ctx.transform(scaleRatio, 0, 0, scaleRatio, 0, 0);
+
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
                     ctx.lineTo(data.bounds[0], 0);
@@ -217,8 +224,8 @@
                     ctx.lineTo(0, data.bounds[1]);
                     ctx.lineTo(0, 0);
                     ctx.stroke();
+                    // Draw the arena bounds
 
-                    scoreboard.style.left = data.bounds[0] + 15;
 
                     for (const player of data.players) {
                         new Ship(player).draw(ctx);
@@ -227,6 +234,8 @@
                     for (const bullet of data.bullets) {
                         new Bullet(bullet).draw(ctx);
                     }
+                    ctx.restore()
+                    scoreboard.style.left = data.bounds[0] * scaleRatio + 15;
 
                     if (JSON.stringify(data.scoreboard) !== JSON.stringify(last_drawn_scoreboard)) {
                         var sorted_players = Object.keys(data.scoreboard).sort(function(a,b){return data.scoreboard[b]-data.scoreboard[a]});

@@ -40,6 +40,7 @@ impl Actor for ClientWsActor {
     }
 
     fn stopped(&mut self, ctx: &mut Self::Context) {
+        info!("API key {} stopped", self.api_key);
         self.game_addr.do_send(crate::actors::game_actor::SocketEvent::Leave(
             self.api_key.clone(),
             ctx.address(),
@@ -63,6 +64,7 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for ClientWsActor {
                 }
             },
             ws::Message::Close(_) => {
+                info!("API key {} close ws", self.api_key);
                 self.game_addr.do_send(crate::actors::game_actor::SocketEvent::Leave(
                     self.api_key.clone(),
                     ctx.address(),

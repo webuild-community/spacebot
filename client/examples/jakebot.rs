@@ -1,4 +1,5 @@
 use euclid::Angle;
+use std::env;
 use std::time::{Duration, Instant};
 use tokyo::{self, analyzer::Analyzer, geom::*, models::*, Handler};
 
@@ -73,5 +74,7 @@ impl Handler for Player {
 
 fn main() {
     println!("starting up...");
-    tokyo::run("DeadgDv3GrV7uNUX", "jakebot", Player::default()).unwrap();
+    let api_key = &env::var("API_KEY").unwrap_or("a".into());
+    let team_name = &env::var("TEAM_NAME").unwrap_or("a".into());
+    tokyo::run(api_key, team_name, Player::default()).unwrap();
 }
