@@ -30,223 +30,23 @@
                 padding: 3px;
                 display: block;
                 position: absolute;
-                top: 10;
-                right: 0;
-            }
-
-            #scoreboard {
-                font-size: 32px;
-                display: block;
-                position: absolute;
-                top: 10;
-                left: 0;
-            }
-
-            .team .id::before {
-                content: "(team #";
-            }
-            .team .id::after {
-                content: ")";
+                bottom: 10px;
+                right: 10px;
+                opacity: 0.5;
             }
     </style>
+    <link rel="stylesheet" href="scoreboard.css" />
     </head>
     <body>
         <canvas id="canvas" width="1600" height="1000" style="border:1px solid #000000; background: #000;">
         </canvas>
 
-        <div id="scoreboard">
-            <h1>Scores</h1>
-            <pre id="chart"></pre>
-        </div>
+        <table id="scoreboard">
+        </table>
         <div id="websocket-status">
             disconnected
         </div>
 
-        <script>
-            const SHIP_SIZE = 18;
-            const BULLET_SIZE = 3;
-            var websocket_status = document.getElementById("websocket-status");
-            var scoreboard = document.getElementById("scoreboard");
-            var scoreboard_chart = document.getElementById("chart");
-            var c = document.getElementById("canvas");
-            window.onload = window.onresize = function() {
-                c.width = document.body.clientWidth - 100; //document.width is obsolete
-                c.height = document.body.clientHeight - 100; //document.height is obsolete
-            }
-            var team_names = {};
-
-            var ctx = c.getContext("2d");
-
-            function connect(handler) {
-                websocket_status.innerText = "connecting...";
-                websocket_status.style.borderColor = "gray";
-
-                const socket = new WebSocket(`ws://${window.location.host}/spectate`);
-                socket.addEventListener('open', function (event) {
-                    websocket_status.innerText = "connected";
-                    websocket_status.style.borderColor = "white";
-                });
-
-                socket.addEventListener('close', function (event) {
-                    websocket_status.innerText = "disconnected";
-                    websocket_status.style.borderColor = "orange";
-                    setTimeout(function() {
-                        connect(handler);
-                    }, 1000);
-                });
-
-                socket.addEventListener('error', function (event) {
-                    websocket_status.innerText = "error!";
-                    websocket_status.style.borderColor = "red";
-                    socket.close();
-                });
-
-                socket.addEventListener('message', function (event) {
-                    let json = JSON.parse(event.data);
-                    handler(json);
-                });
-            }
-
-            class Ship {
-                constructor(obj) {
-                    this.id = obj.id;
-                    this.x = Math.floor(obj.x);
-                    this.y = Math.floor(obj.y);
-                    this.angle = obj.angle;
-                }
-
-                move(x, y) {
-                    this.x = x;
-                    this.y = y;
-                }
-
-                rotate(theta) {
-                    this.angle = theta;
-                }
-
-                draw(ctx) {
-                    ctx.save()
-                    // orient the ship
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.angle - Math.PI / 2.0);
-
-
-                    // draw the ship triangle
-                    ctx.beginPath();
-                    ctx.moveTo(-SHIP_SIZE*0.8, -SHIP_SIZE);
-                    ctx.lineTo(0, SHIP_SIZE);
-                    ctx.lineTo(SHIP_SIZE*0.8, -SHIP_SIZE);
-                    ctx.lineTo(-SHIP_SIZE*0.8, -SHIP_SIZE);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    let oldFill = ctx.fillStyle;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 10, 0, 2*Math.PI);
-                    ctx.fillStyle = "#e05d5d";
-                    ctx.fill();
-                    ctx.fillStyle = oldFill;
-
-                    // draw team name
-                    ctx.rotate(-this.angle + Math.PI / 2.0); // please don't ask me about this math
-                    oldFill = ctx.fillStyle;
-                    ctx.font = '32px monospace';
-                    ctx.textAlign = 'left';
-                    ctx.textBaseline = 'top';
-                    let textMeasurements = ctx.measureText(team_names[this.id]);
-                    ctx.fillStyle = "#000000";
-                    ctx.fillRect(17, -3, textMeasurements.width + 6, 15);
-                    ctx.fillStyle = "#ffffff";
-                    ctx.fillText(team_names[this.id], 20, 0);
-                    ctx.fillStyle = oldFill;
-
-                    // reset transformation
-                    ctx.restore();
-                }
-            }
-
-            class Bullet {
-                constructor(obj) {
-                    this.id = obj.id;
-                    this.player_id = obj.player_id;
-                    this.x = obj.x;
-                    this.y = obj.y;
-                    this.angle = obj.angle;
-                }
-
-                move(x, y) {
-                    this.x = x;
-                    this.y = y;
-                }
-
-                rotate(theta) {
-                    this.theta = theta;
-                }
-
-                draw(ctx) {
-                    ctx.save()
-                    ctx.translate(this.x, this.y);
-
-                    let oldFill = ctx.fillStyle;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 2, 0, 2*Math.PI);
-                    ctx.fillStyle = "#e05d5d";
-                    ctx.fill();
-                    ctx.fillStyle = oldFill;
-
-                    ctx.restore();
-                }
-            }
-
-            var last_drawn_scoreboard = {};
-            var initCanvas = false;
-            connect(function (json) {
-                if (json.e === "teamnames") {
-                    team_names = json.data;
-                } else if (json.e === "state") {
-                    const data = json.data;
-                    ctx.save()
-                    ctx.clearRect(0, 0, c.width, c.height);
-                    ctx.strokeStyle = "#ffffff";
-                    ctx.lineWidth = 1;
-                    ctx.lineCap = "square";
-                    ctx.lineJoin = "bevel";
-
-                    scaleXRatio = c.width / data.bounds[0];
-                    scaleYRatio = c.height / data.bounds[0];
-                    scaleRatio = Math.min(scaleXRatio, scaleYRatio);
-                    ctx.transform(scaleRatio, 0, 0, scaleRatio, 0, 0);
-
-                    ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.lineTo(data.bounds[0], 0);
-                    ctx.lineTo(data.bounds[0], data.bounds[1]);
-                    ctx.lineTo(0, data.bounds[1]);
-                    ctx.lineTo(0, 0);
-                    ctx.stroke();
-                    // Draw the arena bounds
-
-
-                    for (const player of data.players) {
-                        new Ship(player).draw(ctx);
-                    }
-
-                    for (const bullet of data.bullets) {
-                        new Bullet(bullet).draw(ctx);
-                    }
-                    ctx.restore()
-                    scoreboard.style.left = data.bounds[0] * scaleRatio + 15;
-
-                    if (JSON.stringify(data.scoreboard) !== JSON.stringify(last_drawn_scoreboard)) {
-                        var sorted_players = Object.keys(data.scoreboard).sort(function(a,b){return data.scoreboard[b]-data.scoreboard[a]});
-                        chart.innerHTML = "";
-                        for (const player_id of sorted_players) {
-                            chart.innerHTML += `<span class="score">${String(data.scoreboard[player_id]).padEnd(3)}</span> - <span class="team"><span class="name">${team_names[player_id]}</span> <span class="id">${player_id}</span></span>\n`;
-                        }
-                        last_drawn_scoreboard = data.scoreboard;
-                    }
-                }
-            });
-        </script>
+        <script src="index.js"></script>
     </body>
 </html>
