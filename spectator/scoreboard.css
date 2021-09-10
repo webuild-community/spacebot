@@ -1,0 +1,33 @@
+#scoreboard {
+  font-size: 18px;
+  display: block;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  opacity: 0.7;
+}
+#scoreboard .rank::before {
+  content: '#'
+}
+#scoreboard .score {
+  text-align: right;
+}
+#scoreboard .rank {
+  min-width: 40px;
+}
+
+#scoreboard .name {
+  min-width: 150px;
+}
+
+#scoreboard .rank-1 * {
+  color: #ff6b6b;
+}
+
+#scoreboard .rank-2 * {
+  color: #1dd1a1;
+}
+
+#scoreboard .rank-3 * {
+  color: #48dbfb;
+}

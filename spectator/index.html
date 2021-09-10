@@ -30,34 +30,19 @@
                 padding: 3px;
                 display: block;
                 position: absolute;
-                top: 10;
-                right: 0;
-            }
-
-            #scoreboard {
-                font-size: 32px;
-                display: block;
-                position: absolute;
-                top: 10;
-                left: 0;
-            }
-
-            .team .id::before {
-                content: "(team #";
-            }
-            .team .id::after {
-                content: ")";
+                bottom: 10px;
+                right: 10px;
+                opacity: 0.5;
             }
     </style>
+    <link rel="stylesheet" href="scoreboard.css" />
     </head>
     <body>
         <canvas id="canvas" width="1600" height="1000" style="border:1px solid #000000; background: #000;">
         </canvas>
 
-        <div id="scoreboard">
-            <h1>Scores</h1>
-            <pre id="chart"></pre>
-        </div>
+        <table id="scoreboard">
+        </table>
         <div id="websocket-status">
             disconnected
         </div>
@@ -248,5 +233,6 @@
                 }
             });
         </script>
+        <script src="index.js"></script>
     </body>
 </html>
