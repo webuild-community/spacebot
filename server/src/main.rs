@@ -14,9 +14,9 @@ mod models;
 use crate::actors::GameActor;
 use actix::{Actor, Addr, System};
 use actix_web::{http::Method, middleware::Logger, server, App};
-use dotenv::dotenv;
 use lazy_static::lazy_static;
 use listenfd::ListenFd;
+use tokyo::models::GameConfig;
 use std::collections::HashSet;
 
 #[derive(Deserialize, Debug)]
@@ -24,16 +24,22 @@ pub struct AppConfig {
     server_port: Option<u16>,
     api_keys: HashSet<String>,
     dev_mode: bool,
+    game_config: GameConfig,
 }
 
 pub struct AppState {
     game_addr: Addr<GameActor>,
 }
 
+const CONFIG_FILE_PATH: &str = "tokyo.toml";
+
 lazy_static! {
     static ref APP_CONFIG: AppConfig = {
-        dotenv().expect("Could not load the .env config file");
-        envy::from_env::<AppConfig>().expect("Could not deserialize the .env config file")
+        let config = std::fs::read(CONFIG_FILE_PATH).expect("Failed to read config file");
+        let config = toml::from_slice(&config).expect("failed to parse config");
+        println!("Config loaded: {:?}", config);
+
+        config
     };
 }
 
@@ -45,7 +51,7 @@ fn main() -> Result<(), String> {
 
     let actor_system = System::new("meetup-server");
 
-    let game_actor = GameActor::new();
+    let game_actor = GameActor::new(APP_CONFIG.game_config);
     let game_actor_addr = game_actor.start();
 
     let mut server = server::new(move || {

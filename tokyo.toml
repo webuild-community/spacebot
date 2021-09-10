@@ -1,0 +1,7 @@
+server_port = 8080
+api_keys = ["a", "b", "c"]
+dev_mode = true
+
+[game_config]
+bound_x = 2000
+bound_y = 2000

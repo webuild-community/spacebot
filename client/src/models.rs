@@ -14,6 +14,12 @@ pub const PLAYER_MAX_THROTTLE: f32 = 1.0;
 // Send commands more frequently than this interval, and consequences.
 pub const MIN_COMMAND_INTERVAL: Duration = Duration::from_millis(50);
 
+#[derive(Deserialize, Debug, Copy, Clone)]
+pub struct GameConfig {
+    pub bound_x: f32,
+    pub bound_y: f32,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "e", content = "data")]
 pub enum GameCommand {
