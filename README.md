@@ -15,3 +15,7 @@ New file `.env`
 ```
 docker run -it -p 8091:8080 -e RUST_BACKTRACE=1 ledongthuc/tokyo-rs:latest
 ```
+
+## Client guide
+
+[Detail API for client](GUIDE.md)
