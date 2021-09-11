@@ -70,7 +70,7 @@ Event contains current user id
 
 | Fields | Description |
 |--|--|
-| e | State event is is always "state" |
+| e | State event is is always "id" |
 | data | id of current user |
 
 #### 2.1.3. User event
@@ -100,7 +100,7 @@ Event contains all users and their ids in the game.
 
 | Fields | Description |
 |--|--|
-| e | State event is is always "state" |
+| e | State event is is always "teamnames" |
 | data | Hash map of id-name of users |
 
 ### 2.2. Player structure
