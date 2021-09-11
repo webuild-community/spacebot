@@ -39,11 +39,13 @@ State event contains world map states that includes map info, players, bullets, 
       {}
     ],
     "dead": [
-      "respawn":{
-         "secs_since_epoch":1631299999,
-         "nanos_since_epoch":940876053
-       },
-       "player": {}
+      {
+        "respawn":{
+           "secs_since_epoch":1631299999,
+           "nanos_since_epoch":940876053
+         },
+         "player": {}
+       }
     ],
     "scoreboard":{"0":100,"1":90,"2":80}
   }
