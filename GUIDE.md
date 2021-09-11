@@ -19,7 +19,11 @@ When the WebSocket connection is established successfully, your bot is registere
 From WebSocket, the server consecutively sends events to the client every tick with the following structure.
 Event message structure contains all world info of the game, including players, bullets, dead person, etc.
 
-### 2.1. Event general structure
+### 2.1. Events structure
+
+#### 2.1.1. State event
+
+State event contains world map states that includes map info, players, bullets, dead and scoreboard
 
 ```json
 {
@@ -27,17 +31,19 @@ Event message structure contains all world info of the game, including players, 
   "data": {
     "bounds": [1200.0, 800.0],
     "players": [
-      {player},{player}
+      {},
+      {}
     ],
     "bullets": [
-      {bullet},{bullet}
+      {},
+      {}
     ],
     "dead": [
       "respawn":{
-		    "secs_since_epoch":1631299999,
-	      "nanos_since_epoch":940876053
+         "secs_since_epoch":1631299999,
+         "nanos_since_epoch":940876053
        },
-       "player": {player}
+       "player": {}
     ],
     "scoreboard":{"0":100,"1":90,"2":80}
   }
@@ -46,13 +52,56 @@ Event message structure contains all world info of the game, including players, 
 
 | Fields | Description |
 |--|--|
-| e | Event information. The event from the server is always "state" |
+| e | State event is is always "state" |
 | data | Detail data of event "e" |
 | bounds | Boundary of the game, players spawn and navigate their ship in boundary from position [0,0] to this max size boundary. It's an array with two values, width and height |
 | players | List of players/ships in the game currently. Detail of the player object will be described in the next sections |
 | bullets | List of bullets that's fired by ships in the game currently. Detail of bullet object will be described in the next sections |
 | dead | List of dead users and the respawn periods. Information of player is a structure with "players" |
-| scoreboard | Top user score with format "player_id: score" |
+| scoreboard | Top user scores with format "player_id: score" |
+
+#### 2.1.2. Current user event
+
+Event contains current user id
+
+```json
+{"e":"id","data":247}
+```
+
+| Fields | Description |
+|--|--|
+| e | State event is is always "state" |
+| data | id of current user |
+
+#### 2.1.3. User event
+
+Event contains all users and their ids in the game.
+
+```json
+{
+   "e":"teamnames",
+   "data":{
+      "60":"thich_khanh_ngoc",
+      "178":"z",
+      "206":"chicken_killer",
+      "222":"tuan",
+      "161":"don't kill me",
+      "240":"coward_dog",
+      "244":"do_anh_bat_duoc_em",
+      "134":"thich_khanh_ngoc",
+      "154":"tuan",
+      "175":"hieuk09",
+      "176":"z",
+      "173":"don't kill me",
+      "229":"tuan",
+   }
+}
+```
+
+| Fields | Description |
+|--|--|
+| e | State event is is always "state" |
+| data | Hash map of id-name of users |
 
 ### 2.2. Player structure
 
@@ -133,9 +182,17 @@ Set 0 to stop your ship.
 |--|--|
 | e | Event information "fire" |
 
-## 3. Real example
+## 3. Others
 
-### 3.1. Event from server to client
+ - Number of ticks per second: 30
+ - Dead waiting: 1 second
+ - Max concurrent bullet per user: 4
+ - Bullet's radius: 2
+ - Player's radius: 10
+
+## 4. Real example
+
+### 4.1. Event from server to client
 
 ```json
 {
