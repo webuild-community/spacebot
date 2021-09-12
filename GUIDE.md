@@ -14,14 +14,55 @@
 
 When the WebSocket connection is established successfully, your bot is registered, displayed on web UI and ready to use.
 
-## 2. Events
+## 2. Action commands
+
+Through WebSocket, a client can send action commands to control their ship.
+
+### 2.1. Rotate the ship
+
+```json
+{"e": "rotate", "data": 0.5}
+```
+
+| Fields | Description |
+|--|--|
+| e | Event information "rotate" |
+| data | Set the radian value that the ship will head. Value's between [0, 2π] |
+
+![Radian example](https://flylib.com/books/3/315/1/html/2/images/figu345_1.jpg)
+
+### 2.2. Throttle
+
+Set the speed of your ship. Your ship starts to move forward with a new speed.
+Set 0 to stop your ship.
+
+```json
+{"e": "throttle", "data": 0.5}
+```
+
+| Fields | Description |
+|--|--|
+| e | Event information "throttle" |
+| data | Speed value. It's between [0, 1] |
+
+### 2.3. Fire a bullet
+
+```json
+{"e": "fire"}
+```
+
+| Fields | Description |
+|--|--|
+| e | Event information "fire" |
+
+## 3. Events
 
 From WebSocket, the server consecutively sends events to the client every tick with the following structure.
 Event message structure contains all world info of the game, including players, bullets, dead person, etc.
 
-### 2.1. Events structure
+### 3.1. Events structure
 
-#### 2.1.1. State event
+#### 3.1.1. State event
 
 State event contains world map states that includes map info, players, bullets, dead and scoreboard
 
@@ -62,7 +103,7 @@ State event contains world map states that includes map info, players, bullets, 
 | dead | List of dead users and the respawn periods. Information of player is a structure with "players" |
 | scoreboard | Top user scores with format "player_id: score" |
 
-#### 2.1.2. Current user event
+#### 3.1.2. Current user event
 
 Event contains current user id
 
@@ -75,7 +116,7 @@ Event contains current user id
 | e | State event is is always "id" |
 | data | id of current user |
 
-#### 2.1.3. User event
+#### 3.1.3. User event
 
 Event contains all users and their ids in the game.
 
@@ -105,7 +146,7 @@ Event contains all users and their ids in the game.
 | e | State event is is always "teamnames" |
 | data | Hash map of id-name of users |
 
-### 2.2. Player structure
+### 3.2. Player structure
 
 ```json
 {
@@ -124,7 +165,7 @@ Event contains all users and their ids in the game.
 | throttle | Throttle or speed of the ship. 0 = no speed, 1 = max speed |
 | x, y | Ship's position |
 
-### 2.3. Bullet structure
+### 3.3. Bullet structure
 
 ```json
 {
@@ -143,48 +184,8 @@ Event contains all users and their ids in the game.
 | angle | Angle of the bullet is heading. It will move forward |
 | x, y | Bullet's position |
 
-## 3. Action commands
 
-Through WebSocket, a client can send action commands to control their ship.
-
-### 3.1. Rotate the ship
-
-```json
-{"e": "rotate", "data": 0.5}
-```
-
-| Fields | Description |
-|--|--|
-| e | Event information "rotate" |
-| data | Set the radian value that the ship will head. Value's between [0, 2π] |
-
-![Radian example](https://flylib.com/books/3/315/1/html/2/images/figu345_1.jpg)
-
-### 3.2. Throttle
-
-Set the speed of your ship. Your ship starts to move forward with a new speed.
-Set 0 to stop your ship.
-
-```json
-{"e": "throttle", "data": 0.5}
-```
-
-| Fields | Description |
-|--|--|
-| e | Event information "throttle" |
-| data | Speed value. It's between [0, 1] |
-
-### 3.3. Fire a bullet
-
-```json
-{"e": "fire"}
-```
-
-| Fields | Description |
-|--|--|
-| e | Event information "fire" |
-
-## 3. Others
+## 4. Others
 
  - Number of ticks per second: 30
  - Dead waiting: 1 second
@@ -192,9 +193,9 @@ Set 0 to stop your ship.
  - Bullet's radius: 2
  - Player's radius: 10
 
-## 4. Real example
+## 5. Real example
 
-### 4.1. Event from server to client
+### 5.1. Event from server to client
 
 ```json
 {
