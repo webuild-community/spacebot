@@ -175,6 +175,12 @@ connect(function (json) {
         }
 });
 
+function sanitizeHTML(text) {
+  var element = document.createElement('div');
+  element.innerText = text;
+  return element.innerHTML;
+}
+
 function draw_scoreboard(scoreboard) {
         var sorted_players = Object.keys(scoreboard).sort(function (a, b) { return scoreboard[b] - scoreboard[a] });
         var tableHtml = "<tbody>";
@@ -182,7 +188,7 @@ function draw_scoreboard(scoreboard) {
         for (let i = 0; i < sorted_players.length; i++) {
                 const player_id = sorted_players[i];
                 const player_score = String(scoreboard[player_id]).padEnd(3);
-                const team_name = team_names[player_id];
+                const team_name = sanitizeHTML(team_names[player_id]);
                 tableHtml += `
             <tr class="rank-${i + 1}">
               <td class="rank">${i + 1}</td>
