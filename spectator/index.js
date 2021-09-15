@@ -4,8 +4,8 @@ var websocket_status = document.getElementById("websocket-status");
 var chart = document.getElementById("scoreboard");
 var c = document.getElementById("canvas");
 window.onload = window.onresize = function () {
-        c.width = document.body.clientWidth - 150; //document.width is obsolete
-        c.height = document.body.clientHeight - 150; //document.height is obsolete
+        c.width = document.body.clientWidth - 100; //document.width is obsolete
+        c.height = document.body.clientHeight; //document.height is obsolete
 }
 var team_names = {};
 
@@ -147,7 +147,7 @@ connect(function (json) {
                 ctx.lineJoin = "bevel";
 
                 scaleXRatio = c.width / data.bounds[0];
-                scaleYRatio = c.height / data.bounds[0];
+                scaleYRatio = c.height / data.bounds[1];
                 scaleRatio = Math.min(scaleXRatio, scaleYRatio);
                 ctx.transform(scaleRatio, 0, 0, scaleRatio, 0, 0);
 

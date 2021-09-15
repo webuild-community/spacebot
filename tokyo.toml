@@ -3,5 +3,5 @@ api_keys = ["a", "b", "c"]
 dev_mode = true
 
 [game_config]
-bound_x = 2000
-bound_y = 2000
+bound_x = 8000
+bound_y = 8000
