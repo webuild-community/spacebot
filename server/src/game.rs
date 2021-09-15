@@ -4,7 +4,7 @@ use std::time::{Duration, SystemTime};
 use std::collections::HashSet;
 use tokyo::models::{BULLET_RADIUS, BULLET_SPEED, BulletState, DeadPlayer, GameCommand, GameConfig, GameState, PLAYER_BASE_SPEED, PLAYER_RADIUS, PlayerState};
 
-const DEAD_PUNISH: Duration = Duration::from_secs(1);
+const DEAD_PUNISH: Duration = Duration::from_secs(3);
 
 pub const TICKS_PER_SECOND: f32 = 30.0;
 const MAX_CONCURRENT_BULLETS: usize = 4;
@@ -147,7 +147,7 @@ impl Game {
 
                     if active_bullets < MAX_CONCURRENT_BULLETS {
                         let bullet_id = self.bullet_id_counter;
-                        self.bullet_id_counter += 1;
+                        self.bullet_id_counter = self.bullet_id_counter.wrapping_add(1);
 
                         let distance_from_player: f32 = 5.0;
                         let (bullet_x, bullet_y) = angle_to_vector(player.angle);
@@ -205,6 +205,7 @@ impl Game {
         let bounds = self.bounds();
         let bound_x = bounds.0;
         let bound_y = bounds.1;
+
         // Remove out-of-bound bullets
         self.state.bullets.retain(|b| {
             b.x > (BULLET_RADIUS)
@@ -213,18 +214,29 @@ impl Game {
                 && b.y < (bound_y + BULLET_RADIUS)
         });
 
+        let mut colliding_buf = HashSet::new();
+        for bullet in self.state.bullets.iter() {
+            for other in self.state.bullets.iter() {
+                if bullet.id != other.id && bullet.is_colliding(other) {
+                    colliding_buf.insert(bullet.id);
+                    colliding_buf.insert(other.id);
+                }
+            }
+        }
+        self.state.bullets.retain(|b| { !colliding_buf.contains(&b.id) });
+
         // count collisions
-        let mut dead_players = HashSet::new();
+        let mut colliding_buf = HashSet::new();
         for player in &self.state.players {
             for other in &self.state.players {
                 if player.id != other.id && player.is_colliding(other) {
-                    dead_players.insert(player.id);
-                    dead_players.insert(other.id);
+                    colliding_buf.insert(player.id);
+                    colliding_buf.insert(other.id);
                 }
             }
         }
 
-        for mut player in self.state.players.drain_filter(|player| dead_players.contains(&player.id)) {
+        for mut player in self.state.players.drain_filter(|player| colliding_buf.contains(&player.id)) {
             player.randomize(&mut self.rng, bounds);
             self.state
                 .dead

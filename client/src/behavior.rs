@@ -438,8 +438,13 @@ impl Behavior for Dodge {
     fn next_command(&mut self, analyzer: &Analyzer) -> Option<GameCommand> {
         if let Some(bullet) = analyzer.bullets_within_colliding(300.0, Duration::from_secs(2)).next() {
             let angle = bullet.velocity.tangent();
-            Sequence::with_slice(&[&Rotate::with_margin_degrees(angle, 30.0), &Throttle::max()])
-                .next_command(analyzer)
+            if analyzer.own_player().velocity.eq(&Vector::zero()) {
+                Sequence::with_slice(&[&Throttle::max(), &Rotate::with_margin_degrees(angle, 15.0)])
+                    .next_command(analyzer)
+            } else {
+                Sequence::with_slice(&[&Rotate::with_margin_degrees(angle, 15.0)])
+                    .next_command(analyzer)
+            }
         } else {
             None
         }
@@ -458,9 +463,15 @@ pub struct DodgePlayer;
 impl Behavior for DodgePlayer {
     fn next_command(&mut self, analyzer: &Analyzer) -> Option<GameCommand> {
         if let Some(player) = analyzer.players_within_colliding(300.0, Duration::from_secs(2)).next() {
+            println!("Player will collide: {}, velocity: {}", player.id, player.velocity);
             let angle = player.velocity.tangent();
-            Sequence::with_slice(&[&Rotate::with_margin_degrees(angle, 30.0), &Throttle::max()])
-                .next_command(analyzer)
+            if analyzer.own_player().velocity.eq(&Vector::zero()) {
+                Sequence::with_slice(&[&Throttle::max(), &Rotate::with_margin_degrees(angle, 15.0)])
+                    .next_command(analyzer)
+            } else {
+                Sequence::with_slice(&[&Rotate::with_margin_degrees(angle, 15.0)])
+                    .next_command(analyzer)
+            }
         } else {
             None
         }
