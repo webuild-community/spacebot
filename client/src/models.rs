@@ -11,7 +11,7 @@ pub const BULLET_SPEED_INCREMENTAL: f32 = 1.1;
 pub const BULLET_RADIUS_INCREMENTAL: f32 = 1.05;
 pub const PLAYER_RADIUS_INCREMENTAL: f32 = 1.05;
 
-pub const ITEM_RADIUS: f32 = 20.0;
+pub const ITEM_RADIUS: f32 = 10.0;
 
 pub const PLAYER_BASE_RADIUS: f32 = 10.0;
 pub const PLAYER_BASE_SPEED: f32 = 300.0;

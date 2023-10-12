@@ -100,20 +100,17 @@ class Ship {
 
     const shipSize = this.radius + BASE_SHIP_SIZE;
 
+    let oldFill = ctx.fillStyle;
     // draw the ship triangle
     ctx.beginPath();
+    ctx.lineWidth = 2;
     ctx.moveTo(-shipSize * 0.8, -shipSize);
     ctx.lineTo(0, shipSize);
     ctx.lineTo(shipSize * 0.8, -shipSize);
     ctx.lineTo(-shipSize * 0.8, -shipSize);
+    ctx.fillStyle = "#ff0000";
     ctx.fill();
     ctx.stroke();
-
-    let oldFill = ctx.fillStyle;
-    ctx.beginPath();
-    ctx.arc(0, 0, 10, 0, 2 * Math.PI);
-    ctx.fillStyle = "#e05d5d";
-    ctx.fill();
     ctx.fillStyle = oldFill;
 
     // draw team name

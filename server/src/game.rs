@@ -15,7 +15,7 @@ const ITEM_SPAWN_TIME: Duration = Duration::from_secs(5);
 const SURVIVAL_TIMEOUT: u64 = 10;
 
 // Interval for accruing points after reaching the threshold
-const SURVIVAL_POINT_INTERVAL: u64 = 4;
+const SURVIVAL_POINT_INTERVAL: u64 = 10;
 
 pub trait Triangle {
     fn x(&self) -> f32;
@@ -229,8 +229,9 @@ impl Game {
             // Move the player
             let (vel_x, vel_y) = angle_to_vector(player.angle);
 
-            player.x += vel_x * PLAYER_BASE_SPEED * player.throttle * dt;
-            player.y += vel_y * PLAYER_BASE_SPEED * player.throttle * dt;
+            // The bigger you are, the slower you move
+            player.x += vel_x * (PLAYER_BASE_SPEED - player.radius / 10.) * player.throttle * dt;
+            player.y += vel_y * (PLAYER_BASE_SPEED - player.radius / 10.) * player.throttle * dt;
 
             // Keep the players in bounds
             player.x = player.x.max(player.radius).min(self.config.bound_x - player.radius);
@@ -331,7 +332,10 @@ impl Game {
         // Reward players for staying alive
         for (player_id, next_reward_time) in &mut self.survival_times {
             if *next_reward_time <= Instant::now() {
-                *self.state.scoreboard.entry(*player_id).or_default() += 1;
+                // Only reward if there is more than 1 player in the game
+                if self.state.players.len() > 1 {
+                    *self.state.scoreboard.entry(*player_id).or_default() += 1;
+                }
 
                 *next_reward_time = Instant::now() + Duration::from_secs(SURVIVAL_POINT_INTERVAL);
             }
