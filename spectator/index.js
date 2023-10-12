@@ -15,7 +15,7 @@ function connect(handler) {
         websocket_status.innerText = "connecting...";
         websocket_status.style.borderColor = "gray";
 
-        const socket = new WebSocket(`ws://${window.location.host}/spectate`);
+        const socket = new WebSocket(`wss://${window.location.host}/spectate`);
         socket.addEventListener('open', function (event) {
                 websocket_status.innerText = "connected";
                 websocket_status.style.borderColor = "white";
