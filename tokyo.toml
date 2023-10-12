@@ -3,5 +3,5 @@ api_keys = ["webuild"]
 dev_mode = true
 
 [game_config]
-bound_x = 4000
-bound_y = 4000
+bound_x = 3500
+bound_y = 2500

@@ -14,8 +14,9 @@ var ctx = c.getContext("2d");
 function connect(handler) {
         websocket_status.innerText = "connecting...";
         websocket_status.style.borderColor = "gray";
-
-        const socket = new WebSocket(`wss://${window.location.host}/spectate`);
+        const isLocalServer = window.location.host.indexOf('localhost');
+        const protocol = isLocalServer === -1 ? 'ws://' : 'ws://';
+        const socket = new WebSocket(`${protocol}${window.location.host}/spectate`);
         socket.addEventListener('open', function (event) {
                 websocket_status.innerText = "connected";
                 websocket_status.style.borderColor = "white";
@@ -123,7 +124,7 @@ class Bullet {
 
                 let oldFill = ctx.fillStyle;
                 ctx.beginPath();
-                ctx.arc(0, 0, 2, 0, 2 * Math.PI);
+                ctx.arc(0, 0, BULLET_SIZE, 0, 2 * Math.PI);
                 ctx.fillStyle = "#f9ca24";
                 ctx.fill();
                 ctx.fillStyle = oldFill;
