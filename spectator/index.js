@@ -15,7 +15,7 @@ function connect(handler) {
         websocket_status.innerText = "connecting...";
         websocket_status.style.borderColor = "gray";
         const isLocalServer = window.location.host.indexOf('localhost') !== -1;
-        const protocol = isLocalServer === -1 ? 'ws://' : 'ws://';
+        const protocol = isLocalServer ? 'ws://' : 'ws://';
         const socket = new WebSocket(`${protocol}${window.location.host}/spectate`);
         socket.addEventListener('open', function (event) {
                 websocket_status.innerText = "connected";
