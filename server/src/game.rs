@@ -213,6 +213,8 @@ impl Game {
             let item_id = self.item_id_counter;
             self.item_id_counter = self.item_id_counter.wrapping_add(1);
             self.state.items.push(Item::new_randomized(item_id, &mut self.rng, bounds));
+
+            self.last_item_spawn_at = Instant::now();
         }
 
         // Advance bullets
