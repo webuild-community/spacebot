@@ -1,7 +1,7 @@
 server_port = 8080
-api_keys = ["a", "b", "c"]
+api_keys = ["webuild"]
 dev_mode = true
 
 [game_config]
-bound_x = 8000
-bound_y = 8000
+bound_x = 4000
+bound_y = 4000
