@@ -2,12 +2,14 @@ use std::time::Instant;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 use std::collections::HashSet;
-use tokyo::models::{BULLET_RADIUS, BULLET_SPEED, BulletState, DeadPlayer, GameCommand, GameConfig, GameState, PLAYER_BASE_SPEED, PLAYER_RADIUS, PlayerState};
+use tokyo::models::{BulletState, DeadPlayer, GameCommand, GameConfig, GameState, PLAYER_BASE_SPEED, PlayerState, Item};
 
 const DEAD_PUNISH: Duration = Duration::from_secs(3);
 
 pub const TICKS_PER_SECOND: f32 = 30.0;
-const MAX_CONCURRENT_BULLETS: usize = 4;
+
+const MAX_CONCURRENT_ITEMS: usize = 20;
+const ITEM_SPAWN_TIME: Duration = Duration::from_secs(5);
 
 // Time until you start accruing points for surviving
 const SURVIVAL_TIMEOUT: u64 = 10;
@@ -46,7 +48,7 @@ impl Triangle for PlayerState {
     }
 
     fn radius(&self) -> f32 {
-        PLAYER_RADIUS
+        self.radius
     }
 }
 
@@ -64,7 +66,25 @@ impl Triangle for BulletState {
     }
 
     fn radius(&self) -> f32 {
-        BULLET_RADIUS
+        self.radius
+    }
+}
+
+impl Triangle for Item {
+    fn x(&self) -> f32 {
+        self.x
+    }
+
+    fn y(&self) -> f32 {
+        self.y
+    }
+
+    fn angle(&self) -> f32 {
+        0.0
+    }
+
+    fn radius(&self) -> f32 {
+        self.radius
     }
 }
 
@@ -73,7 +93,9 @@ pub struct Game {
     pub state: GameState,
     rng: rand::rngs::ThreadRng,
     bullet_id_counter: u32,
+    item_id_counter: u32,
     survival_times: HashMap<u32, Instant>,
+    last_item_spawn_at: Instant,
 }
 
 impl Game {
@@ -82,8 +104,10 @@ impl Game {
             state: GameState::new((config.bound_x, config.bound_y)),
             rng: Default::default(),
             bullet_id_counter: 0,
+            item_id_counter: 0,
             survival_times: HashMap::new(),
             config,
+            last_item_spawn_at: Instant::now(),
         }
     }
 
@@ -145,7 +169,7 @@ impl Game {
                         .filter(|bullet| bullet.player_id == player.id)
                         .count();
 
-                    if active_bullets < MAX_CONCURRENT_BULLETS {
+                    if active_bullets < player.bullet_limit as usize {
                         let bullet_id = self.bullet_id_counter;
                         self.bullet_id_counter = self.bullet_id_counter.wrapping_add(1);
 
@@ -158,6 +182,8 @@ impl Game {
                             angle: player.angle,
                             x: player.x + (bullet_x * distance_from_player),
                             y: player.y + (bullet_y * distance_from_player),
+                            radius: player.bullet_radius,
+                            speed: player.bullet_speed,
                         });
                     }
                 },
@@ -168,6 +194,7 @@ impl Game {
     pub fn init(&mut self) {}
 
     pub fn tick(&mut self, dt: f32) {
+        let bounds = self.bounds();
         // Revive the dead
         let now = SystemTime::now();
         let revived = self
@@ -182,12 +209,20 @@ impl Game {
 
         self.state.players.extend(revived);
 
+        if self.last_item_spawn_at.elapsed() > ITEM_SPAWN_TIME && self.state.items.len() < MAX_CONCURRENT_ITEMS {
+            let item_id = self.item_id_counter;
+            self.item_id_counter = self.item_id_counter.wrapping_add(1);
+            self.state.items.push(Item::new_randomized(item_id, &mut self.rng, bounds));
+
+            self.last_item_spawn_at = Instant::now();
+        }
+
         // Advance bullets
         for bullet in &mut self.state.bullets {
             let (vel_x, vel_y) = angle_to_vector(bullet.angle);
 
-            bullet.x += vel_x * BULLET_SPEED * dt;
-            bullet.y += vel_y * BULLET_SPEED * dt;
+            bullet.x += vel_x * bullet.speed * dt;
+            bullet.y += vel_y * bullet.speed * dt;
         }
 
         for player in &mut self.state.players {
@@ -198,8 +233,8 @@ impl Game {
             player.y += vel_y * PLAYER_BASE_SPEED * player.throttle * dt;
 
             // Keep the players in bounds
-            player.x = player.x.max(PLAYER_RADIUS).min(self.config.bound_x - PLAYER_RADIUS);
-            player.y = player.y.max(PLAYER_RADIUS).min(self.config.bound_y - PLAYER_RADIUS);
+            player.x = player.x.max(player.radius).min(self.config.bound_x - player.radius);
+            player.y = player.y.max(player.radius).min(self.config.bound_y - player.radius);
         }
 
         let bounds = self.bounds();
@@ -208,10 +243,10 @@ impl Game {
 
         // Remove out-of-bound bullets
         self.state.bullets.retain(|b| {
-            b.x > (BULLET_RADIUS)
-                && b.x < (bound_x + BULLET_RADIUS)
-                && b.y > (BULLET_RADIUS)
-                && b.y < (bound_y + BULLET_RADIUS)
+            b.x > (b.radius)
+                && b.x < (bound_x + b.radius)
+                && b.y > (b.radius)
+                && b.y < (bound_y + b.radius)
         });
 
         let mut colliding_buf = HashSet::new();
@@ -273,6 +308,17 @@ impl Game {
                     .push(DeadPlayer { respawn: SystemTime::now() + DEAD_PUNISH, player });
             }
         }
+
+        let mut used_items = vec![];
+        for item in self.state.items.iter() {
+            for player in self.state.players.iter_mut() {
+                if player.is_colliding(item) {
+                    item.apply_to(player);
+                    used_items.push(item.id);
+                }
+            }
+        }
+        self.state.items.retain(|i| !used_items.contains(&i.id));
 
         // Clear out used bullets
         self.state.bullets.retain(|b| !used_bullets.contains(&b.id));

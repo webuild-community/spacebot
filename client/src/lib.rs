@@ -6,8 +6,6 @@
 #[macro_use]
 extern crate serde_derive;
 
-pub mod analyzer;
-pub mod behavior;
 pub mod geom;
 pub mod models;
 
