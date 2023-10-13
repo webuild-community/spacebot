@@ -58,13 +58,13 @@ class Item {
     ctx.arc(0, 0, this.radius, 0, 2 * Math.PI);
     switch (this.item_type) {
       case 'BiggerBullet':
-        ctx.fillStyle = "#a29bfe";
+        ctx.fillStyle = "#ff8d5c";
         break;
       case 'FasterBullet':
         ctx.fillStyle = "#74b9ff";
         break;
       case 'MoreBullet':
-        ctx.fillStyle = "#55efc4";
+        ctx.fillStyle = "#d5ff05";
         break;
     }
     ctx.fill();
@@ -224,10 +224,35 @@ function draw_scoreboard(scoreboard) {
   var sorted_players = Object.keys(scoreboard).sort(function (a, b) { return scoreboard[b] - scoreboard[a] });
   var tableHtml = "<tbody>";
 
+  tableHtml += `<tr>
+        <td colspan="3" style="text-decoration: underline;"><b>Information</b></td>
+      </tr>`;
+  tableHtml += `<tr>
+        <td colspan="3">
+          <span style="display: inline-block; width: 10px; height: 10px; border-radius: 5px; background: #ff8d5c;"></span>
+          Bigger Bullet
+        </td>
+      </tr>`;
+  tableHtml += `<tr>
+        <td colspan="3">
+          <span style="display: inline-block; width: 10px; height: 10px; border-radius: 5px; background: #74b9ff;"></span>
+          Faster Bullet
+        </td>
+      </tr>`;
+  tableHtml += `<tr>
+        <td colspan="3">
+          <span style="display: inline-block; width: 10px; height: 10px; border-radius: 5px; background: #d5ff05;"></span>
+          More Bullet
+        </td>
+      </tr>`;
+  tableHtml += `<tr style="padding-top: 20px;">
+        <td colspan="3" style="text-decoration: underline;"><b>Leaderboard</b></td>
+      </tr>`;
   for (let i = 0; i < sorted_players.length; i++) {
     const player_id = sorted_players[i];
     const player_score = String(scoreboard[player_id]).padEnd(3);
     const team_name = sanitizeHTML(team_names[player_id]);
+
     tableHtml += `
             <tr class="rank-${i + 1}">
               <td class="rank">${i + 1}</td>
