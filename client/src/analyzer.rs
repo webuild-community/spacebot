@@ -14,6 +14,10 @@ pub mod player;
 /// Collision detection etc is done at this compute interval.
 pub const ANALYSIS_INTERVAL: Duration = Duration::from_millis(10);
 
+#[derive(Debug)]
+pub struct Item {
+    pub position: Point,
+}
 /// `Analyzer` provides a set of methods to analyze the current state of the
 /// world, past behaviors of the `Player`s and `Bullet`s, and future projections.
 ///
@@ -35,7 +39,14 @@ pub struct Analyzer {
     own_player_id: u32,
     players: HashMap<u32, Player>,
     bullets: Vec<Bullet>,
+    items: Vec<Item>,
     last_update: Instant,
+}
+
+impl PointExt for Item {
+    fn point(&self) -> &Point {
+        &self.position
+    }
 }
 
 impl Default for Analyzer {
@@ -44,6 +55,7 @@ impl Default for Analyzer {
             own_player_id: 0,
             players: HashMap::new(),
             bullets: Vec::new(),
+            items: Vec::new(),
             last_update: Instant::now(),
         }
     }
@@ -65,10 +77,15 @@ impl Analyzer {
             players.insert(player.id, player);
         }
         self.players = players;
+        self.items = state.game_state.items.iter().map(|i| Item { position: Point::new(i.x, i.y) }).collect();
 
         self.bullets = state.game_state.bullets.iter().map(|state| Bullet::new(&state)).collect();
 
         self.last_update = time;
+    }
+
+    pub fn item_closest(&self) -> Option<&Item> {
+        self.items.iter().min_by_key(|item| (self.own_player().distance(*item) * 1e3) as u64)
     }
 
     /// Returns the `Player` specified by an ID.
@@ -129,9 +146,9 @@ impl Analyzer {
 
     /// Returns an `Iterator` of `Player`s whose current location is within
     /// the `radius` of your own `Player`.
-    pub fn players_within_colliding<'a>(&'a self, radius: f32, during: Duration) -> impl Iterator<Item = &'a Player> {
+    pub fn players_within_colliding<'a>(&'a self, radius: f32, during: Duration, self_stop: bool) -> impl Iterator<Item = &'a Player> {
         self.players_within(radius)
-            .filter(move |player| self.own_player().is_colliding_during(*player, during.clone()))
+            .filter(move |player| self.own_player().is_colliding_during(*player, during.clone(), self_stop))
     }
 
     /// Returns an `Iterator` of `Bullet`s that are shot by you and are still
@@ -150,14 +167,14 @@ impl Analyzer {
     /// within the `duration`, if you stayed at the current position.
     pub fn bullets_colliding<'a>(&'a self, during: Duration) -> impl Iterator<Item = &'a Bullet> {
         self.other_bullets()
-            .filter(move |bullet| self.own_player().is_colliding_during(*bullet, during.clone()))
+            .filter(move |bullet| self.own_player().is_colliding_during(*bullet, during.clone(), false))
     }
 
     /// Returns an `Iterator` of `Bullet`s that your `Player` would be colliding
     /// within the `duration`, if you stayed at the current position.
     pub fn bullets_within_colliding<'a>(&'a self, radius: f32, during: Duration) -> impl Iterator<Item = &'a Bullet> {
         self.bullets_within(radius)
-            .filter(move |bullet| self.own_player().is_colliding_during(*bullet, during.clone()))
+            .filter(move |bullet| self.own_player().is_colliding_during(*bullet, during.clone(), false))
     }
 
     /// Returns an `Iterator` of `Bullet`s that are shot by other `Player`s and

@@ -115,7 +115,7 @@ impl RadianExt for Radian {
 }
 
 pub trait Moving: PointExt + VectorExt {
-    const RADIUS: f32;
+    fn radius(&self) -> f32;
     /// Returns the projection of the current position, or `point()`, along the
     /// velocity, or `vector()`, for the amount of time `dt`.
     fn project(&self, dt: Duration) -> Point {

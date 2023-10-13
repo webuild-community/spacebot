@@ -1,14 +1,14 @@
 use crate::{
     analyzer::ANALYSIS_INTERVAL,
     geom::*,
-    models::{PlayerState, PLAYER_BASE_SPEED, PLAYER_MIN_THROTTLE, PLAYER_RADIUS},
+    models::{self, PlayerState, PLAYER_BASE_SPEED, PLAYER_MIN_THROTTLE},
 };
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// `Player` struct contains the past and the current states of a single player
 /// identified by an ID. You will usually be accessing `Player`s through the
 /// methods provided by `Analyzer`.
@@ -20,6 +20,9 @@ pub struct Player {
     pub velocity: Vector,
     pub trajectory: Trajectory,
     pub score_history: ScoreHistory,
+    pub radius: f32,
+    pub bullet_speed: f32,
+    pub bullet_radius: f32,
 }
 
 impl Player {
@@ -39,6 +42,9 @@ impl Player {
             id: state.id,
             angle,
             throttle: state.throttle,
+            radius: state.radius,
+            bullet_speed: state.bullet_speed,
+            bullet_radius: state.bullet_radius,
             position,
             velocity,
             trajectory,
@@ -70,16 +76,21 @@ impl Player {
 
     /// Returns whether the `Player` will be colliding the given `Bullet` at a
     /// particular time in the future, specified by `interval`.
-    pub fn is_colliding_at<M: Moving>(&self, target: &M, interval: Duration) -> bool {
-        self.project(interval).distance(&target.project(interval)) < M::RADIUS + PLAYER_RADIUS
+    pub fn is_colliding_at<M: Moving>(&self, target: &M, interval: Duration, self_stop: bool) -> bool {
+        let p = if self_stop {
+            self.project(Duration::from_secs(0))
+        } else {
+            self.project(interval)
+        };
+        p.distance(&target.project(interval)) < target.radius() + self.radius
     }
 
     /// Returns whether the `Player` will be colliding the given `Bullet` during
     /// the given `interval`.
-    pub fn is_colliding_during<M: Moving>(&self, target: &M, interval: Duration) -> bool {
+    pub fn is_colliding_during<M: Moving>(&self, target: &M, interval: Duration, self_stop: bool) -> bool {
         let num_analysis = (interval.as_millis() / ANALYSIS_INTERVAL.as_millis()) as u32;
         (1..=num_analysis)
-            .map(|tick| self.is_colliding_at(target, ANALYSIS_INTERVAL * tick))
+            .map(|tick| self.is_colliding_at(target, ANALYSIS_INTERVAL * tick, self_stop))
             .any(|hit| hit)
     }
 }
@@ -90,6 +101,9 @@ impl Default for Player {
             id: 0,
             angle: Radian::zero(),
             throttle: PLAYER_MIN_THROTTLE,
+            radius: models::PLAYER_BASE_RADIUS,
+            bullet_radius: models::BULLET_BASE_RADIUS,
+            bullet_speed: models::BULLET_BASE_SPEED,
             position: Point::zero(),
             velocity: Vector::zero(),
             trajectory: Trajectory::default(),
@@ -115,12 +129,14 @@ impl VectorExt for Player {
 }
 
 impl Moving for Player {
-    const RADIUS: f32 = PLAYER_RADIUS;
+    fn radius(&self) -> f32 {
+        self.radius
+    }
 }
 
 /// `Trajectory` contains the past positions of a `Player`. You may want to use
 /// it to infer the move behavior and logic of a `Player` of your interest.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Trajectory {
     pub positions: Vec<(Point, Instant)>,
 }
@@ -184,7 +200,7 @@ impl Trajectory {
 /// `ScoreHistory` contains all the record of past scores of a `Player`. It may
 /// be useful if you want to identify a `Player` who will likely be the highest
 /// scoring in the future, instead of just looking at the current scores.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ScoreHistory {
     inner: Vec<(u32, Instant)>,
 }

@@ -336,14 +336,15 @@ impl Behavior for FireAt {
                     .map(|da| angle / 10.0 + Radian::degrees(da as f32))
                     .filter(|angle| {
                         target.is_colliding_during(
-                            &Bullet::with_position_angle(own_player.position, *angle),
+                            &Bullet::with_position_angle(own_player.position, *angle, own_player.bullet_speed, own_player.bullet_radius),
                             Duration::from_secs(4),
+                            false,
                         )
                     })
                     .next()
                     .unwrap_or(angle);
                 self.next = Sequence::with_slice(&[
-                    &Rotate::with_margin_degrees(corrected_angle, 0.0),
+                    &Rotate::with_margin_degrees(corrected_angle, 0.1),
                     &Fire::new(),
                 ]);
                 return self.next.next_command(analyzer);
@@ -432,22 +433,76 @@ impl Behavior for Chase {
 /// A `Behavior` to keep dodging nearby bullets as much as possible at the
 /// maximum throttle.
 #[derive(Clone, Debug)]
-pub struct Dodge;
+pub struct Dodge {
+    next: Sequence,
+    pub radius: f32,
+    pub during: Duration,
+}
+
+impl Dodge {
+    pub fn new(radius: f32, during_secs: f32) -> Self {
+        Self {
+            next: Sequence::new(),
+            radius,
+            during: Duration::from_secs_f32(during_secs)
+        }
+    }
+}
 
 impl Behavior for Dodge {
     fn next_command(&mut self, analyzer: &Analyzer) -> Option<GameCommand> {
-        if let Some(bullet) = analyzer.bullets_within_colliding(300.0, Duration::from_secs(2)).next() {
-            let angle = bullet.velocity.tangent();
-            if analyzer.own_player().velocity.eq(&Vector::zero()) {
-                Sequence::with_slice(&[&Throttle::max(), &Rotate::with_margin_degrees(angle, 15.0)])
-                    .next_command(analyzer)
-            } else {
-                Sequence::with_slice(&[&Rotate::with_margin_degrees(angle, 15.0)])
-                    .next_command(analyzer)
-            }
-        } else {
-            None
+        if let Some(next_command) = self.next.next_command(analyzer) {
+            return Some(next_command);
         }
+
+        if let Some(bullet) = analyzer.bullets_within_colliding(self.radius, self.during).next() {
+            let angle = bullet.velocity.tangent();
+            self.next = Sequence::with_slice(&[
+                &Throttle::max(),
+                &Rotate::with_margin_degrees(angle, 5.0),
+            ]);
+            return self.next.next_command(analyzer);
+        }
+
+        None
+    }
+
+    fn box_clone(&self) -> Box<dyn Behavior> {
+        Box::new(self.clone())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct GetAwayFromPlayer {
+    next: Sequence,
+}
+
+impl GetAwayFromPlayer {
+    pub fn new() -> Self {
+        Self {
+            next: Sequence::new(),
+        }
+    }
+}
+
+impl Behavior for GetAwayFromPlayer {
+    fn next_command(&mut self, analyzer: &Analyzer) -> Option<GameCommand> {
+        if let Some(next_command) = self.next.next_command(analyzer) {
+            return Some(next_command);
+        }
+
+        let own_player = analyzer.own_player();
+        if let Some(player) = analyzer.player_closest() {
+            // revert angle to that player
+            let angle = player.angle_to(own_player);
+            self.next = Sequence::with_slice(&[
+                &Throttle::max(),
+                &Rotate::with_margin_degrees(angle, 5.0),
+            ]);
+            return self.next.next_command(analyzer);
+        }
+
+        None
     }
 
     fn box_clone(&self) -> Box<dyn Behavior> {
@@ -458,23 +513,44 @@ impl Behavior for Dodge {
 /// A `Behavior` to keep dodging nearby bullets as much as possible at the
 /// maximum throttle.
 #[derive(Clone, Debug)]
-pub struct DodgePlayer;
+pub struct DodgePlayer {
+    next: Sequence,
+}
+
+impl DodgePlayer {
+    pub fn new() -> Self {
+        Self {
+            next: Sequence::new(),
+        }
+    }
+}
 
 impl Behavior for DodgePlayer {
     fn next_command(&mut self, analyzer: &Analyzer) -> Option<GameCommand> {
-        if let Some(player) = analyzer.players_within_colliding(300.0, Duration::from_secs(2)).next() {
+        if let Some(next_command) = self.next.next_command(analyzer) {
+            return Some(next_command);
+        }
+
+        if let Some(player) = analyzer.players_within_colliding(400.0, Duration::from_secs(2), false).next() {
             println!("Player will collide: {}, velocity: {}", player.id, player.velocity);
             let angle = player.velocity.tangent();
-            if analyzer.own_player().velocity.eq(&Vector::zero()) {
-                Sequence::with_slice(&[&Throttle::max(), &Rotate::with_margin_degrees(angle, 15.0)])
-                    .next_command(analyzer)
-            } else {
-                Sequence::with_slice(&[&Rotate::with_margin_degrees(angle, 15.0)])
-                    .next_command(analyzer)
-            }
-        } else {
-            None
+            self.next = Sequence::with_slice(&[
+                &Throttle::max(),
+                &Rotate::with_margin_degrees(angle, 5.0),
+            ]);
+            return self.next.next_command(analyzer);
         }
+        if let Some(player) = analyzer.players_within_colliding(400.0, Duration::from_secs(2), true).next() {
+            println!("chased by: {}, counter attack", player.id);
+            let angle = player.velocity.tangent();
+            self.next = Sequence::with_slice(&[
+                &FireAt::with_times(Target::Id(player.id), 2),
+                &Rotate::with_margin_degrees(angle, 5.0)
+            ]);
+            return self.next.next_command(analyzer);
+        }
+
+        None
     }
 
     fn box_clone(&self) -> Box<dyn Behavior> {
@@ -514,5 +590,27 @@ impl Target {
             Target::HighestScore => analyzer.player_highest_score(),
             Target::HighestScoreAfter(after) => analyzer.player_highest_score_after(*after),
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PickItem;
+
+impl Behavior for PickItem {
+    fn next_command(&mut self, analyzer: &Analyzer) -> Option<GameCommand> {
+        if let Some(item) = analyzer.item_closest() {
+            let own_player = analyzer.own_player();
+            let angle = own_player.angle_to(&item.position);
+            if let Some(cmd) = Rotate::new(angle).next_command(analyzer) {
+                return Some(cmd);
+            } else {
+                return Some(GameCommand::Throttle(1.0));
+            }
+        }
+        None
+    }
+
+    fn box_clone(&self) -> Box<dyn Behavior> {
+        Box::new(self.clone())
     }
 }

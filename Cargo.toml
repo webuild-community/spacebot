@@ -2,4 +2,5 @@
 members = [
     "client",
     "server",
+    "client/examples/complex",
 ]

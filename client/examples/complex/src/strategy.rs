@@ -43,9 +43,10 @@ impl StrategyNode {
 
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub enum Priority {
-    Low = 0,
-    Medium = 1,
-    High = 2,
+    Empty = 0,
+    Low = 1,
+    Medium = 2,
+    High = 3,
 }
 
 // TODO: Replace with a pair.
@@ -57,7 +58,7 @@ pub struct PrioritizedBehavior {
 
 impl PrioritizedBehavior {
     pub fn new() -> Self {
-        Self { priority: Priority::Low, behavior: Box::new(Noop {}) }
+        Self { priority: Priority::Empty, behavior: Box::new(Noop {}) }
     }
 
     pub fn with_low<T: Behavior>(behavior: T) -> Self {

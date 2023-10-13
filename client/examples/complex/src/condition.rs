@@ -2,7 +2,7 @@ use std::{
     fmt::Debug,
     time::{Duration, Instant},
 };
-use tokyo::analyzer::Analyzer;
+use tokyo::analyzer::{Analyzer, player::Player};
 
 pub trait Condition: Send + Debug {
     fn evaluate(&mut self, _: &Analyzer) -> bool;
@@ -112,12 +112,54 @@ impl Condition for PlayerWithHigherScore {
 }
 
 #[derive(Debug)]
-pub struct BulletWithin {
+pub struct BulletColliding {
     pub radius: f32,
+    pub during: Duration,
 }
 
-impl Condition for BulletWithin {
+impl BulletColliding {
+    pub fn new(radius: f32, during_secs: f32) -> Self {
+        Self {
+            radius,
+            during: Duration::from_secs_f32(during_secs)
+        }
+    }
+}
+
+impl Condition for BulletColliding {
     fn evaluate(&mut self, analyzer: &Analyzer) -> bool {
-        analyzer.bullets_within(self.radius).count() > 0
+        analyzer.bullets_within_colliding(self.radius, self.during).count() > 0
+    }
+}
+
+
+#[derive(Debug)]
+pub struct PlayerGettingNear {
+    pub search_radius: f32,
+    pub near_radius: f32,
+    pub during: Duration,
+}
+
+impl PlayerGettingNear {
+    pub fn new(search_r: f32, near_r: f32, during_secs: f32) -> Self {
+        Self {
+            search_radius: search_r,
+            near_radius: near_r,
+            during: Duration::from_secs_f32(during_secs)
+        }
+    }
+}
+
+impl Condition for PlayerGettingNear {
+    fn evaluate(&mut self, analyzer: &Analyzer) -> bool {
+        let mut own_player: Player = analyzer.own_player().clone();
+        own_player.radius += self.near_radius;
+
+        for player in analyzer.players_within(self.search_radius) {
+            if own_player.is_colliding_during(player, self.during, false) {
+                return true;
+            }
+        }
+        false
     }
 }
