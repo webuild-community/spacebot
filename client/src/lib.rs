@@ -6,6 +6,8 @@
 #[macro_use]
 extern crate serde_derive;
 
+pub mod analyzer;
+pub mod behavior;
 pub mod geom;
 pub mod models;
 
@@ -111,7 +113,7 @@ where
 {
     let host = env::var("SERVER_HOST").unwrap_or("192.168.0.199".into());
     let url = Url::parse(&format!(
-        "ws://{}/socket?key={}&name={}",
+        "wss://{}/socket?key={}&name={}",
         host,
         key,
         utf8_percent_encode(name, DEFAULT_ENCODE_SET).to_string()

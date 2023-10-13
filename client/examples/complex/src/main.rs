@@ -4,10 +4,11 @@
 ///
 /// A more complex example client, that uses a decision tree structure to decide
 /// the next behavior at each tick.
-use crate::{condition::{Always, And, AtInterval, BulletWithin, PlayerWithin}, strategy::{PrioritizedBehavior, Strategy, StrategyNode}};
+use crate::{condition::{Always, And, AtInterval, PlayerWithin}, strategy::{PrioritizedBehavior, Strategy, StrategyNode}};
 use std::time::{Duration, Instant};
 use std::env;
-use tokyo::{self, Handler, analyzer::Analyzer, behavior::{Chase, Dodge, DodgePlayer, FireAt, Target}, models::*};
+use condition::{BulletColliding, PlayerGettingNear};
+use tokyo::{self, Handler, analyzer::Analyzer, behavior::{Dodge, DodgePlayer, FireAt, Target, PickItem, GetAwayFromPlayer}, models::*};
 
 mod condition;
 mod strategy;
@@ -32,25 +33,38 @@ impl Player {
             // keeps dodging.
             strategy: Strategy::new(vec![
                 (
-                    Box::new(And::new(BulletWithin { radius: 150.0 }, AtInterval::new(Duration::from_millis(150)))),
-                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_high(Dodge {}))),
+                    Box::new(BulletColliding::new(300.0, 2.0)),
+                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_high(Dodge::new(300.0, 2.0)))),
                 ),
                 (
-                    Box::new(And::new(PlayerWithin { radius: 100.0 }, AtInterval::new(Duration::from_millis(10)))),
-                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_high(DodgePlayer {}))),
+                    Box::new(And::new(PlayerGettingNear::new(700.0, 300.0, 3.0), AtInterval::new(Duration::from_millis(100)))),
+                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_medium(GetAwayFromPlayer::new()))),
                 ),
                 (
-                    Box::new(And::new(PlayerWithin { radius: 700.0 }, AtInterval::new(Duration::from_millis(400)))),
+                    Box::new(And::new(PlayerWithin { radius: 400.0 }, AtInterval::new(Duration::from_millis(10)))),
+                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_high(DodgePlayer::new()))),
+                ),
+                (
+                    Box::new(And::new(PlayerWithin { radius: 1000.0 }, AtInterval::new(Duration::from_millis(2000)))),
+                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_medium(FireAt::new(
+                        Target::Closest,
+                    )))),
+                ),
+                (
+                    Box::new(And::new(PlayerWithin { radius: 700.0 }, AtInterval::new(Duration::from_millis(1000)))),
+                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_medium(FireAt::new(
+                        Target::Closest,
+                    )))),
+                ),
+                (
+                    Box::new(And::new(PlayerWithin { radius: 500.0 }, AtInterval::new(Duration::from_millis(300)))),
                     Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_medium(FireAt::new(
                         Target::Closest,
                     )))),
                 ),
                 (
                     Box::new(Always),
-                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_low(Chase::new(
-                        Target::Closest,
-                        500.0,
-                    )))),
+                    Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_low(PickItem))),
                 ),
             ]),
             current_behavior: PrioritizedBehavior::new(),
@@ -87,7 +101,7 @@ impl Handler for Player {
 fn main() {
     // TODO: Substitute with your API key and team name.
     let api_key = &env::var("API_KEY").unwrap_or("a".into());
-    let team_name = &env::var("TEAM_NAME").unwrap_or("a".into());
+    let team_name = &env::var("TEAM_NAME").unwrap_or("ThucUnbelievale".into());
 
     println!("starting up...");
     tokyo::run(api_key, team_name, Player::new()).unwrap();
