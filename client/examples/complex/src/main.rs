@@ -33,7 +33,7 @@ impl Player {
             // keeps dodging.
             strategy: Strategy::new(vec![
                 (
-                    Box::new(And::new(BulletColliding::new(300.0, 2.0), AtInterval::new(Duration::from_millis(10)))),
+                    Box::new(BulletColliding::new(300.0, 2.0)),
                     Box::new(StrategyNode::Leaf(PrioritizedBehavior::with_high(Dodge::new(300.0, 2.0)))),
                 ),
                 (
