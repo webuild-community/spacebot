@@ -166,7 +166,7 @@ impl Item {
             ItemType::BiggerBullet => {
                 player.bullet_radius *= BULLET_RADIUS_INCREMENTAL;
                 player.radius *= PLAYER_RADIUS_INCREMENTAL;
-                player.bullet_speed -= BULLET_SPEED_INCREMENTAL / 2.;
+                player.bullet_speed -= BULLET_SPEED_INCREMENTAL;
             },
         }
     }
