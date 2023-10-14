@@ -144,6 +144,7 @@ impl Game {
             self.state.dead.remove(idx);
         }
 
+        self.state.scoreboard.remove(&player_id);
         self.survival_times.remove(&player_id);
     }
 
