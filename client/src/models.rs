@@ -8,7 +8,7 @@ pub const BULLET_BASE_LIMIT: u32 = 3;
 pub const BULLET_BASE_RADIUS: f32 = 4.0;
 pub const BULLET_BASE_SPEED: f32 = 500.0; // in pixels-per-second
 pub const BULLET_SPEED_INCREMENTAL: f32 = 1.05;
-pub const BULLET_RADIUS_INCREMENTAL: f32 = 1.10;
+pub const BULLET_RADIUS_INCREMENTAL: f32 = 1.05;
 pub const PLAYER_RADIUS_INCREMENTAL: f32 = 1.05;
 
 pub const ITEM_RADIUS: f32 = 10.0;
