@@ -11,13 +11,13 @@ mod controllers;
 mod game;
 mod models;
 
-use crate::actors::GameActor;
+use crate::actors::{GameActor, RoomManagerActor};
 use actix::{Actor, Addr, System};
 use actix_web::{http::Method, middleware::Logger, server, App};
 use lazy_static::lazy_static;
 use listenfd::ListenFd;
-use tokyo::models::GameConfig;
 use std::collections::HashSet;
+use tokyo::models::GameConfig;
 
 #[derive(Deserialize, Debug)]
 pub struct AppConfig {
@@ -29,6 +29,7 @@ pub struct AppConfig {
 
 pub struct AppState {
     game_addr: Addr<GameActor>,
+    room_manager_addr: Addr<RoomManagerActor>,
 }
 
 const CONFIG_FILE_PATH: &str = "tokyo.toml";
@@ -54,11 +55,20 @@ fn main() -> Result<(), String> {
     let game_actor = GameActor::new(APP_CONFIG.game_config);
     let game_actor_addr = game_actor.start();
 
+    let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config);
+    let room_manager_addr = room_manager_actor.start();
+
     let mut server = server::new(move || {
-        let app_state = AppState { game_addr: game_actor_addr.clone() };
+        let app_state = AppState {
+            game_addr: game_actor_addr.clone(),
+            room_manager_addr: room_manager_addr.clone(),
+        };
 
         App::with_state(app_state)
             .middleware(Logger::default())
+            .resource("/rooms", |r| {
+                r.method(Method::POST).with(controllers::api::create_room_handler);
+            })
             .resource("/socket", |r| {
                 r.method(Method::GET).with(controllers::api::socket_handler);
             })

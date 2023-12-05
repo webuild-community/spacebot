@@ -1,8 +1,10 @@
 use crate::{
-    actors::ClientWsActor, AppState,
+    actors::{ClientWsActor, CreateRoom, JoinRoom},
     models::messages::ServerCommand,
+    AppState,
 };
-use actix_web::{HttpRequest, Query, State, http::StatusCode};
+use actix_web::{http::StatusCode, HttpRequest, Query, State};
+use futures::Future;
 
 #[derive(Debug, Deserialize)]
 pub struct QueryString {
@@ -42,4 +44,35 @@ pub fn reset_handler(
 ) -> Result<actix_web::HttpResponse, actix_web::Error> {
     state.game_addr.do_send(ServerCommand::Reset);
     Ok(actix_web::HttpResponse::with_body(StatusCode::OK, "done"))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RoomCreateRequest {
+    pub name: String,
+    pub max_players: u32,
+    pub time_limit_seconds: u32,
+}
+
+pub fn create_room_handler(
+    (_req, state, json): (
+        HttpRequest<AppState>,
+        State<AppState>,
+        actix_web::Json<RoomCreateRequest>,
+    ),
+) -> Result<actix_web::HttpResponse, actix_web::Error> {
+    let r = state
+        .room_manager_addr
+        .send(CreateRoom {
+            name: json.name.clone(),
+            max_players: json.max_players,
+            time_limit_seconds: json.time_limit_seconds,
+        })
+        .wait();
+    match r {
+        Ok(room) => {
+            let body = serde_json::to_string(&room).unwrap();
+            Ok(actix_web::HttpResponse::with_body(StatusCode::OK, body))
+        },
+        Err(_) => Err(actix_web::error::ErrorBadRequest("Failed to create room")),
+    }
 }
