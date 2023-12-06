@@ -4,18 +4,20 @@ use rand::{distributions::Alphanumeric, Rng};
 use std::{
     collections::HashMap,
     io::{Error, ErrorKind, Result},
-    sync::Mutex,
 };
 use tokyo::models::GameConfig;
 
+const TOKEN_LENGTH: usize = 8;
+// RoomManagerActor is responsible for creating and managing rooms
 pub struct RoomManagerActor {
     config: GameConfig,
-    id_counter: Mutex<u32>,
-    rooms: Mutex<HashMap<String, Room>>,
+    id_counter: u32,
+    rooms: HashMap<String, Room>,
 }
 
+// Room is a single game instance
 struct Room {
-    id: String,
+    id: u32,
     name: String,
     max_players: u32,
     time_limit_seconds: u32,
@@ -26,7 +28,7 @@ struct Room {
 impl Room {
     pub fn new(
         config: &GameConfig,
-        id: String,
+        id: u32,
         name: String,
         max_players: u32,
         time_limit_seconds: u32,
@@ -40,11 +42,7 @@ impl Room {
 
 impl RoomManagerActor {
     pub fn new(cfg: GameConfig) -> RoomManagerActor {
-        RoomManagerActor {
-            config: cfg,
-            id_counter: Mutex::new(0),
-            rooms: Mutex::new(HashMap::new()),
-        }
+        RoomManagerActor { config: cfg, id_counter: 0, rooms: HashMap::new() }
     }
 
     pub fn create_room(
@@ -53,18 +51,19 @@ impl RoomManagerActor {
         max_players: u32,
         time_limit_seconds: u32,
     ) -> RoomCreated {
-        let mut id_counter = self.id_counter.lock().unwrap();
-        *id_counter += 1;
+        self.id_counter += 1;
+        let new_id = self.id_counter.to_string();
+        let token: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(TOKEN_LENGTH)
+            .map(char::from)
+            .collect();
 
-        let new_id = id_counter.to_string();
-        let token: String =
-            rand::thread_rng().sample_iter(&Alphanumeric).take(7).map(char::from).collect();
-
-        self.rooms.lock().unwrap().insert(
+        self.rooms.insert(
             token.clone(),
             Room::new(
                 &self.config,
-                new_id.to_string(),
+                self.id_counter,
                 name.to_string(),
                 max_players,
                 time_limit_seconds,
@@ -134,8 +133,7 @@ impl Handler<JoinRoom> for RoomManagerActor {
     type Result = MessageResult<JoinRoom>;
 
     fn handle(&mut self, msg: JoinRoom, _ctx: &mut Self::Context) -> Self::Result {
-        let room_map = self.rooms.lock().unwrap();
-        let room = room_map.get(&msg.room_token);
+        let room = self.rooms.get(&msg.room_token);
         match room {
             Some(room) => {
                 let msg = RoomJoined {
