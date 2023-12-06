@@ -114,19 +114,14 @@ impl Handler<CreateRoom> for RoomManagerActor {
 }
 
 #[derive(Message)]
-#[rtype(result = "Result<RoomJoined>")]
+#[rtype(result = "Result<RoomEntry>")]
 pub struct JoinRoom {
     pub room_token: String,
-    pub api_key: String,
-    pub team_name: String,
 }
 
 #[derive(Message)]
-pub struct RoomJoined {
+pub struct RoomEntry {
     pub game_addr: Addr<GameActor>,
-    pub room_token: String,
-    pub api_key: String,
-    pub team_name: String,
 }
 
 impl Handler<JoinRoom> for RoomManagerActor {
@@ -135,16 +130,46 @@ impl Handler<JoinRoom> for RoomManagerActor {
     fn handle(&mut self, msg: JoinRoom, _ctx: &mut Self::Context) -> Self::Result {
         let room = self.rooms.get(&msg.room_token);
         match room {
-            Some(room) => {
-                let msg = RoomJoined {
-                    game_addr: room.game.clone(),
-                    room_token: msg.room_token,
-                    api_key: msg.api_key,
-                    team_name: msg.team_name,
-                };
-                MessageResult(Result::Ok(msg))
-            },
+            Some(room) => MessageResult(Result::Ok(RoomEntry { game_addr: room.game.clone() })),
             None => MessageResult(Result::Err(Error::new(ErrorKind::NotFound, "Room not found"))),
         }
+    }
+}
+
+#[derive(Message)]
+#[rtype(result = "RoomList")]
+pub struct ListRooms;
+
+#[derive(Message, Serialize, Deserialize)]
+pub struct RoomList {
+    pub rooms: Vec<RoomDetail>,
+}
+
+#[derive(Message, Serialize, Deserialize)]
+pub struct RoomDetail {
+    pub id: u32,
+    pub name: String,
+    pub max_players: u32,
+    pub time_limit_seconds: u32,
+    pub token: String,
+}
+
+impl Handler<ListRooms> for RoomManagerActor {
+    type Result = MessageResult<ListRooms>;
+
+    fn handle(&mut self, _msg: ListRooms, _ctx: &mut Self::Context) -> Self::Result {
+        let mut rooms: Vec<RoomDetail> = self
+            .rooms
+            .values()
+            .map(|room| RoomDetail {
+                id: room.id,
+                name: room.name.clone(),
+                max_players: room.max_players,
+                time_limit_seconds: room.time_limit_seconds,
+                token: room.token.clone(),
+            })
+            .collect();
+        rooms.sort_by_key(|room| room.id);
+        MessageResult(RoomList { rooms })
     }
 }
