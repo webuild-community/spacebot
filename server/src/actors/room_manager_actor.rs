@@ -8,6 +8,7 @@ use std::{
 use tokyo::models::GameConfig;
 
 const TOKEN_LENGTH: usize = 8;
+
 // RoomManagerActor is responsible for creating and managing rooms
 pub struct RoomManagerActor {
     config: GameConfig,
@@ -34,7 +35,9 @@ impl Room {
         time_limit_seconds: u32,
         token: String,
     ) -> Room {
-        let game_actor = GameActor::new(config.clone());
+        let game_cfg = GameConfig { bound_x: config.bound_x, bound_y: config.bound_y };
+
+        let game_actor = GameActor::new(game_cfg, max_players, time_limit_seconds);
         let game_actor_addr = game_actor.start();
         Room { id, name, max_players, time_limit_seconds, token, game: game_actor_addr }
     }
@@ -160,8 +163,8 @@ impl Handler<ListRooms> for RoomManagerActor {
     fn handle(&mut self, _msg: ListRooms, _ctx: &mut Self::Context) -> Self::Result {
         let mut rooms: Vec<RoomDetail> = self
             .rooms
-            .values()
-            .map(|room| RoomDetail {
+            .iter()
+            .map(|(_, room)| RoomDetail {
                 id: room.id,
                 name: room.name.clone(),
                 max_players: room.max_players,

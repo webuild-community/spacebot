@@ -52,7 +52,7 @@ fn main() -> Result<(), String> {
 
     let actor_system = System::new("meetup-server");
 
-    let game_actor = GameActor::new(APP_CONFIG.game_config);
+    let game_actor = GameActor::new(APP_CONFIG.game_config, 0, 0);
     let game_actor_addr = game_actor.start();
 
     let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config);

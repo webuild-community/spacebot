@@ -9,6 +9,7 @@ use spin_sleep::LoopHelper;
 use std::{
     collections::{HashMap, HashSet},
     sync::mpsc::{channel, Receiver, Sender},
+    time::{Duration, Instant},
 };
 use tokyo::models::*;
 
@@ -23,6 +24,8 @@ pub struct GameActor {
     player_id_counter: u32,
     api_key_to_player_id: HashMap<String, u32>,
     game_config: GameConfig,
+    max_players: u32,
+    time_limit_seconds: u32,
 }
 
 #[derive(Debug)]
@@ -34,7 +37,7 @@ pub enum GameLoopCommand {
 }
 
 impl GameActor {
-    pub fn new(config: GameConfig) -> GameActor {
+    pub fn new(config: GameConfig, max_players: u32, time_limit_seconds: u32) -> GameActor {
         let (msg_tx, msg_rx) = channel();
 
         GameActor {
@@ -47,6 +50,8 @@ impl GameActor {
             player_id_counter: 0,
             api_key_to_player_id: HashMap::new(),
             game_config: config,
+            max_players,
+            time_limit_seconds,
         }
     }
 }
@@ -56,12 +61,17 @@ fn game_loop(
     msg_chan: Receiver<GameLoopCommand>,
     mut cancel_chan: oneshot::Receiver<()>,
     config: GameConfig,
+    max_players: u32,
+    time_limit_seconds: u32,
 ) {
     let mut loop_helper = LoopHelper::builder().build_with_target_rate(TICKS_PER_SECOND);
 
     let mut game = Game::new(config);
 
     game.init();
+    let mut status = GameStatus::New;
+    let mut num_players: u32 = 0;
+    let mut game_over_at: Option<Instant> = None;
 
     loop {
         loop_helper.loop_start();
@@ -77,22 +87,44 @@ fn game_loop(
             // info!("Got a message! - {:?}", cmd);
             match cmd {
                 GameLoopCommand::PlayerJoined(id) => {
+                    if !can_add_player(&status, max_players, num_players) {
+                        continue;
+                    }
                     game.add_player(id);
+                    num_players += 1;
+                    if can_start_game(&status, max_players, num_players) {
+                        println!("Starting game!");
+                        status = GameStatus::Running;
+                        game_over_at =
+                            Some(Instant::now() + Duration::from_secs(time_limit_seconds as u64));
+                    }
                 },
                 GameLoopCommand::PlayerLeft(id) => {
                     game.player_left(id);
+                    num_players -= 1;
                 },
                 GameLoopCommand::GameCommand(id, cmd) => {
+                    if !status.is_running() {
+                        continue;
+                    }
                     game.handle_cmd(id, cmd);
                 },
                 GameLoopCommand::Reset => {
                     game.reset();
-                }
+                },
             }
         }
 
-        let dt = 1.0 / TICKS_PER_SECOND;
-        game.tick(dt);
+        if will_end_game(&status, max_players, game_over_at) {
+            println!("Ending game!");
+            status = GameStatus::Finished;
+            game_over_at = None;
+        }
+
+        if status.is_running() {
+            let dt = 1.0 / TICKS_PER_SECOND;
+            game.tick(dt);
+        }
 
         // Send out update packets
 
@@ -103,6 +135,42 @@ fn game_loop(
     }
 
     info!("game over!");
+}
+
+fn can_add_player(status: &GameStatus, max_players: u32, num_players: u32) -> bool {
+    if max_players == 0 {
+        return true;
+    }
+    match status {
+        GameStatus::New => num_players < max_players as u32,
+        _ => false,
+    }
+}
+
+fn can_start_game(status: &GameStatus, max_players: u32, num_players: u32) -> bool {
+    if max_players == 0 {
+        return true;
+    }
+    match status {
+        GameStatus::New => num_players == max_players as u32,
+        _ => false,
+    }
+}
+
+fn will_end_game(status: &GameStatus, max_players: u32, game_over_at: Option<Instant>) -> bool {
+    if max_players == 0 {
+        return false;
+    }
+    match status {
+        GameStatus::Running => {
+            if let Some(game_over_at) = game_over_at {
+                Instant::now() >= game_over_at
+            } else {
+                false
+            }
+        },
+        _ => false,
+    }
 }
 
 impl Actor for GameActor {
@@ -118,8 +186,10 @@ impl Actor for GameActor {
         let msg_rx = self.msg_rx.take().unwrap();
 
         let config = self.game_config;
+        let max_players = self.max_players;
+        let time_limit_seconds = self.time_limit_seconds;
         std::thread::spawn(move || {
-            game_loop(addr, msg_rx, cancel_rx, config);
+            game_loop(addr, msg_rx, cancel_rx, config, max_players, time_limit_seconds);
         });
 
         self.cancel_chan = Some(cancel_tx);
@@ -237,7 +307,7 @@ impl Handler<ServerCommand> for GameActor {
                 self.msg_tx
                     .send(GameLoopCommand::Reset)
                     .expect("The game loop should always be receiving commands");
-            }
+            },
         }
     }
 }
