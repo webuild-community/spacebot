@@ -1,5 +1,5 @@
 use crate::{
-    actors::{ClientWsActor, CreateRoom, JoinRoom},
+    actors::{ClientWsActor, CreateRoom, JoinRoom, ListRooms},
     models::messages::ServerCommand,
     AppState,
 };
@@ -8,6 +8,7 @@ use futures::Future;
 
 #[derive(Debug, Deserialize)]
 pub struct QueryString {
+    room_token: String,
     key: String,
     name: String,
 }
@@ -16,27 +17,44 @@ pub fn socket_handler(
     (req, state, query): (HttpRequest<AppState>, State<AppState>, Query<QueryString>),
 ) -> Result<actix_web::HttpResponse, actix_web::Error> {
     if crate::APP_CONFIG.dev_mode || crate::APP_CONFIG.api_keys.contains(&query.key) {
-        actix_web::ws::start(
-            &req,
-            ClientWsActor::new(state.game_addr.clone(), query.key.clone(), query.name.clone()),
-        )
+        let r = state
+            .room_manager_addr
+            .send(JoinRoom { room_token: query.room_token.clone() })
+            .wait()
+            .unwrap();
+        match r {
+            Ok(room) => actix_web::ws::start(
+                &req,
+                ClientWsActor::new(room.game_addr, query.key.clone(), query.name.clone()),
+            ),
+            Err(err) => Err(actix_web::error::ErrorBadRequest(err.to_string())),
+        }
     } else {
         Err(actix_web::error::ErrorBadRequest("Invalid API Key"))
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SpectatorString {
+    room_token: String,
+}
+
 pub fn spectate_handler(
-    (req, state): (HttpRequest<AppState>, State<AppState>),
+    (req, state, query): (HttpRequest<AppState>, State<AppState>, Query<SpectatorString>),
 ) -> Result<actix_web::HttpResponse, actix_web::Error> {
     // TODO(bschwind) - Make a separate spectator actor
-    actix_web::ws::start(
-        &req,
-        ClientWsActor::new(
-            state.game_addr.clone(),
-            "SPECTATOR".to_string(),
-            "SPECTATOR".to_string(),
+    let r = state
+        .room_manager_addr
+        .send(JoinRoom { room_token: query.room_token.clone() })
+        .wait()
+        .unwrap();
+    match r {
+        Ok(room) => actix_web::ws::start(
+            &req,
+            ClientWsActor::new(room.game_addr, "SPECTATOR".to_string(), "SPECTATOR".to_string()),
         ),
-    )
+        Err(err) => Err(actix_web::error::ErrorBadRequest(err.to_string())),
+    }
 }
 
 pub fn reset_handler(
@@ -74,5 +92,18 @@ pub fn create_room_handler(
             Ok(actix_web::HttpResponse::with_body(StatusCode::OK, body))
         },
         Err(_) => Err(actix_web::error::ErrorBadRequest("Failed to create room")),
+    }
+}
+
+pub fn list_rooms_handler(
+    (_req, state): (HttpRequest<AppState>, State<AppState>),
+) -> Result<actix_web::HttpResponse, actix_web::Error> {
+    let room_map = state.room_manager_addr.send(ListRooms);
+    match room_map.wait() {
+        Ok(room_list) => {
+            let body = serde_json::to_string(&room_list.rooms).unwrap();
+            Ok(actix_web::HttpResponse::with_body(StatusCode::OK, body))
+        },
+        Err(_) => Err(actix_web::error::ErrorBadRequest("Failed to list rooms")),
     }
 }

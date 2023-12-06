@@ -4,11 +4,12 @@
 
 ## 1. Connection information
 
-`ws://${host}/socket?key={key}&name{name}`
+`ws://${host}/socket?room_token={room_token}key={key}&name{name}`
 
 | Parameters | Description |
 |--|--|
 | {host} | Domain or IP of server want to connect |
+| {room_token} | Room's token is unique for room |
 | {key} | User's identity is unique and used to distinguish bots |
 | {name} | The display name will be shown on UI |
 

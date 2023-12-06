@@ -68,6 +68,7 @@ fn main() -> Result<(), String> {
             .middleware(Logger::default())
             .resource("/rooms", |r| {
                 r.method(Method::POST).with(controllers::api::create_room_handler);
+                r.method(Method::GET).with(controllers::api::list_rooms_handler);
             })
             .resource("/socket", |r| {
                 r.method(Method::GET).with(controllers::api::socket_handler);
