@@ -99,6 +99,30 @@ pub struct Item {
     pub item_type: ItemType,
 }
 
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+pub enum GameStatus {
+    #[default]
+    New,
+    Running,
+    Finished,
+}
+
+impl GameStatus {
+    pub fn is_running(&self) -> bool {
+        match self {
+            GameStatus::Running => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_over(&self) -> bool {
+        match self {
+            GameStatus::Finished => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize, Message)]
 pub struct GameState {
     pub bounds: (f32, f32),
@@ -138,7 +162,11 @@ impl PlayerState {
 }
 
 impl Item {
-    pub fn new_randomized(id: u32, rng: &mut impl rand::Rng, (bound_right, bound_bottom): (f32, f32)) -> Self {
+    pub fn new_randomized(
+        id: u32,
+        rng: &mut impl rand::Rng,
+        (bound_right, bound_bottom): (f32, f32),
+    ) -> Self {
         let x = rng.gen_range(0.0, bound_right);
         let y = rng.gen_range(0.0, bound_bottom);
         let item_type = match rng.gen_range(0, 3) {
@@ -147,10 +175,7 @@ impl Item {
             _ => ItemType::BiggerBullet,
         };
 
-        Self {
-            id, x, y, item_type,
-            radius: ITEM_RADIUS,
-        }
+        Self { id, x, y, item_type, radius: ITEM_RADIUS }
     }
 
     pub fn apply_to(&self, player: &mut PlayerState) {
