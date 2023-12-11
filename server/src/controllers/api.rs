@@ -122,9 +122,7 @@ fn create_room_fields(room: &RoomCreated) -> HashMap<String, String> {
     fields.insert("name".to_string(), room.name.clone());
     fields.insert("time_limit_seconds".to_string(), room.time_limit_seconds.to_string());
     fields.insert("max_players".to_string(), room.max_players.to_string());
-    
-    // TODO(haongo) - Handle room's max_players check
-    // fields.insert("status".to_string(), format!("{}", RoomStatus::Ready));
+    fields.insert("status".to_string(), String::from("READY")); // TODO(haongo) - Handle room's max_players check & room start based on this field
 
     fields
 }
