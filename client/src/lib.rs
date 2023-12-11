@@ -107,16 +107,17 @@ where
 
 /// Begin the client-side game loop, using the provided struct that implements `Handler`
 /// to act on behalf of the player.
-pub fn run<H>(key: &str, name: &str, handler: H) -> Result<(), Error>
+pub fn run<H>(key: &str, name: &str, room_token: &str, handler: H) -> Result<(), Error>
 where
     H: Handler + Send + 'static,
 {
-    let host = env::var("SERVER_HOST").unwrap_or("192.168.0.199".into());
+    let host = env::var("SERVER_HOST").unwrap_or("127.0.0.1:8080".into());
     let url = Url::parse(&format!(
-        "wss://{}/socket?key={}&name={}",
+        "ws://{}/socket?key={}&name={}&room_token={}",
         host,
         key,
-        utf8_percent_encode(name, DEFAULT_ENCODE_SET).to_string()
+        utf8_percent_encode(name, DEFAULT_ENCODE_SET).to_string(),
+        room_token,
     ))?;
 
     let client_state =

@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use crate::{
-    actors::{ClientWsActor, CreateRoom, JoinRoom, ListRooms},
-    models::messages::ServerCommand,
+    actors::{ClientWsActor, CreateRoom, JoinRoom, ListRooms, room_manager_actor::RoomCreated},
+    models::messages::{ServerCommand, SetRoomCommand},
     AppState,
 };
 use actix_web::{http::StatusCode, HttpRequest, Query, State};
@@ -25,7 +27,7 @@ pub fn socket_handler(
         match r {
             Ok(room) => actix_web::ws::start(
                 &req,
-                ClientWsActor::new(room.game_addr, query.key.clone(), query.name.clone()),
+                ClientWsActor::new(room.game_addr, state.redis_actor_addr.clone(), query.key.clone(), query.name.clone(), query.room_token.clone()),
             ),
             Err(err) => Err(actix_web::error::ErrorBadRequest(err.to_string())),
         }
@@ -51,7 +53,7 @@ pub fn spectate_handler(
     match r {
         Ok(room) => actix_web::ws::start(
             &req,
-            ClientWsActor::new(room.game_addr, "SPECTATOR".to_string(), "SPECTATOR".to_string()),
+            ClientWsActor::new(room.game_addr, state.redis_actor_addr.clone(), "SPECTATOR".to_string(), "SPECTATOR".to_string(), query.room_token.clone()),
         ),
         Err(err) => Err(actix_web::error::ErrorBadRequest(err.to_string())),
     }
@@ -89,6 +91,13 @@ pub fn create_room_handler(
     match r {
         Ok(room) => {
             let body = serde_json::to_string(&room).unwrap();
+
+            // cache created room info
+            let cache_fields = create_room_fields(&room);
+            let _ = state
+                .redis_actor_addr
+                .send(SetRoomCommand { room_token: room.token.clone(), fields: cache_fields })
+                .wait()?;
             Ok(actix_web::HttpResponse::with_body(StatusCode::OK, body))
         },
         Err(_) => Err(actix_web::error::ErrorBadRequest("Failed to create room")),
@@ -106,4 +115,16 @@ pub fn list_rooms_handler(
         },
         Err(_) => Err(actix_web::error::ErrorBadRequest("Failed to list rooms")),
     }
+}
+
+fn create_room_fields(room: &RoomCreated) -> HashMap<String, String> {
+    let mut fields = HashMap::new();
+    fields.insert("name".to_string(), room.name.clone());
+    fields.insert("time_limit_seconds".to_string(), room.time_limit_seconds.to_string());
+    fields.insert("max_players".to_string(), room.max_players.to_string());
+    
+    // TODO(haongo) - Handle room's max_players check
+    // fields.insert("status".to_string(), format!("{}", RoomStatus::Ready));
+
+    fields
 }
