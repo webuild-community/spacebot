@@ -37,7 +37,7 @@ impl Room {
     ) -> Room {
         let game_cfg = GameConfig { bound_x: config.bound_x, bound_y: config.bound_y };
 
-        let game_actor = GameActor::new(game_cfg, max_players, time_limit_seconds);
+        let game_actor = GameActor::new(game_cfg, max_players, time_limit_seconds, token.clone());
         let game_actor_addr = game_actor.start();
         Room { id, name, max_players, time_limit_seconds, token, game: game_actor_addr }
     }

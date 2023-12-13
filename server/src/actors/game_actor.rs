@@ -1,7 +1,7 @@
 use crate::{
     actors::ClientWsActor,
     game::{Game, TICKS_PER_SECOND},
-    models::messages::{ClientStop, PlayerGameCommand, ServerCommand},
+    models::messages::{ClientStop, PlayerGameCommand, ServerCommand, SetScoreboardCommand},
 };
 use actix::{Actor, Addr, AsyncContext, Context, Handler, Message};
 use futures::sync::oneshot;
@@ -13,8 +13,11 @@ use std::{
 };
 use tokyo::models::*;
 
+use super::RedisActor;
+
 #[derive(Debug)]
 pub struct GameActor {
+    redis_actor_addr: Addr<RedisActor>,
     connections: HashMap<String, Addr<ClientWsActor>>,
     spectators: HashSet<Addr<ClientWsActor>>,
     team_names: HashMap<u32, String>,
@@ -26,6 +29,7 @@ pub struct GameActor {
     game_config: GameConfig,
     max_players: u32,
     time_limit_seconds: u32,
+    room_token: String,
 }
 
 #[derive(Debug)]
@@ -37,10 +41,15 @@ pub enum GameLoopCommand {
 }
 
 impl GameActor {
-    pub fn new(config: GameConfig, max_players: u32, time_limit_seconds: u32) -> GameActor {
+    pub fn new(config: GameConfig, max_players: u32, time_limit_seconds: u32, room_token: String) -> GameActor {
         let (msg_tx, msg_rx) = channel();
+        
+        let redis_uri = crate::APP_CONFIG.redis_uri.clone().unwrap_or("redis://127.0.0.1/".into());
+        let redis_actor = RedisActor::new(redis_uri);
+        let redis_actor_addr = redis_actor.start();
 
         GameActor {
+            redis_actor_addr,
             connections: HashMap::new(),
             spectators: HashSet::new(),
             team_names: HashMap::new(),
@@ -52,17 +61,20 @@ impl GameActor {
             game_config: config,
             max_players,
             time_limit_seconds,
+            room_token,
         }
     }
 }
 
 fn game_loop(
     game_actor: Addr<GameActor>,
+    redis_actor: Addr<RedisActor>,
     msg_chan: Receiver<GameLoopCommand>,
     mut cancel_chan: oneshot::Receiver<()>,
     config: GameConfig,
     max_players: u32,
     time_limit_seconds: u32,
+    room_token: String,
 ) {
     let mut loop_helper = LoopHelper::builder().build_with_target_rate(TICKS_PER_SECOND);
 
@@ -119,6 +131,12 @@ fn game_loop(
             println!("Ending game!");
             status = GameStatus::Finished;
             game_over_at = None;
+
+            // store scoreboard on game end
+            redis_actor.do_send(SetScoreboardCommand {
+                room_token: room_token.clone(),
+                scoreboard: game.state.scoreboard.clone(),
+            });
         }
 
         if status.is_running() {
@@ -180,6 +198,8 @@ impl Actor for GameActor {
         info!("Game Actor started!");
         let (cancel_tx, cancel_rx) = oneshot::channel();
         let addr = ctx.address();
+        let redis_actor_addr = self.redis_actor_addr.clone();
+        let room_token = self.room_token.clone();
 
         // "Take" the receiving end of the channel and give it
         // to the game loop thread
@@ -189,7 +209,7 @@ impl Actor for GameActor {
         let max_players = self.max_players;
         let time_limit_seconds = self.time_limit_seconds;
         std::thread::spawn(move || {
-            game_loop(addr, msg_rx, cancel_rx, config, max_players, time_limit_seconds);
+            game_loop(addr, redis_actor_addr, msg_rx, cancel_rx, config, max_players, time_limit_seconds, room_token);
         });
 
         self.cancel_chan = Some(cancel_tx);

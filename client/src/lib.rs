@@ -111,9 +111,9 @@ pub fn run<H>(key: &str, name: &str, room_token: &str, handler: H) -> Result<(),
 where
     H: Handler + Send + 'static,
 {
-    let host = env::var("SERVER_HOST").unwrap_or("127.0.0.1:8080".into());
+    let host = env::var("SERVER_HOST").unwrap_or("192.168.0.199".into());
     let url = Url::parse(&format!(
-        "ws://{}/socket?key={}&name={}&room_token={}",
+        "wss://{}/socket?key={}&name={}&room_token={}",
         host,
         key,
         utf8_percent_encode(name, DEFAULT_ENCODE_SET).to_string(),

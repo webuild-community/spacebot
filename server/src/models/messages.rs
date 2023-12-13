@@ -18,43 +18,12 @@ pub enum ServerCommand {
 }
 
 #[derive(Message)]
-#[rtype(result = "Result<String, redis::RedisError>")]
-pub struct GetRoomFieldCommand {
+#[rtype(result = "Result<(), redis::RedisError>")]
+pub struct SetScoreboardCommand {
     pub room_token: String,
-    pub field: String,
+    pub scoreboard: HashMap<u32, u32>,
 }
 
 #[derive(Message)]
-#[rtype(result = "Result<String, redis::RedisError>")]
-pub struct UpdateRoomFieldCommand {
-    pub room_token: String,
-    pub field: String,
-    pub value: String,
-}
-
-#[derive(Message)]
-#[rtype(result = "Result<String, redis::RedisError>")]
-pub struct SetRoomCommand {
-    pub room_token: String,
-    pub fields: HashMap<String, String>, // Use a HashMap to represent multiple fields
-}
-
-#[derive(Message)]
-#[rtype(result = "Result<u32, redis::RedisError>")]
-pub struct GetRoomSizeCommand {
-    pub room_token: String,
-}
-
-#[derive(Message)]
-#[rtype(result = "Result<String, redis::RedisError>")]
-pub struct AddRoomPlayerCommand {
-    pub room_token: String,
-    pub player_key: String,
-}
-
-#[derive(Message)]
-#[rtype(result = "Result<String, redis::RedisError>")]
-pub struct RemoveRoomPlayerCommand {
-    pub room_token: String,
-    pub player_key: String,
-}
+#[rtype(result = "Result<HashMap<u32, u32>, redis::RedisError>")]
+pub struct GetScoreboardCommand(pub String);

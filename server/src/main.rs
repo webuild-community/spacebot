@@ -14,7 +14,7 @@ mod models;
 use crate::actors::{GameActor, RoomManagerActor};
 use actix::{Actor, Addr, System};
 use actix_web::{http::Method, middleware::Logger, server, App};
-use actors::redis_actor::{RedisActor, create_redis_actor};
+use actors::RedisActor;
 use lazy_static::lazy_static;
 use listenfd::ListenFd;
 use std::collections::HashSet;
@@ -56,9 +56,10 @@ fn main() -> Result<(), String> {
     let actor_system = System::new("meetup-server");
 
     let redis_uri = APP_CONFIG.redis_uri.clone().unwrap_or("redis://127.0.0.1/".into());
-    let redis_actor_addr = create_redis_actor(redis_uri);
+    let redis_actor = RedisActor::new(redis_uri);
+    let redis_actor_addr = redis_actor.start();
 
-    let game_actor = GameActor::new(APP_CONFIG.game_config, 0, 0);
+    let game_actor = GameActor::new(APP_CONFIG.game_config, 0, 0, String::from(""));
     let game_actor_addr = game_actor.start();
 
     let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config);
@@ -76,6 +77,9 @@ fn main() -> Result<(), String> {
             .resource("/rooms", |r| {
                 r.method(Method::POST).with(controllers::api::create_room_handler);
                 r.method(Method::GET).with(controllers::api::list_rooms_handler);
+            })
+            .resource("/rooms/{room_token}/scoreboard", |r| {
+                r.method(Method::GET).with(controllers::api::get_room_scoreboard);
             })
             .resource("/socket", |r| {
                 r.method(Method::GET).with(controllers::api::socket_handler);

@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use crate::{
-    actors::{ClientWsActor, CreateRoom, JoinRoom, ListRooms, room_manager_actor::RoomCreated},
-    models::messages::{ServerCommand, SetRoomCommand},
+    actors::{ClientWsActor, CreateRoom, JoinRoom, ListRooms},
+    models::messages::{GetScoreboardCommand, ServerCommand},
     AppState,
 };
-use actix_web::{http::StatusCode, HttpRequest, Query, State};
+use actix_web::{http::StatusCode, HttpRequest, Path, Query, State};
 use futures::Future;
 
 #[derive(Debug, Deserialize)]
@@ -13,6 +11,17 @@ pub struct QueryString {
     room_token: String,
     key: String,
     name: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ScoreboardEntry {
+    player_id: u32,
+    total_points: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ScoreboardResponse {
+    scoreboard: Vec<ScoreboardEntry>,
 }
 
 pub fn socket_handler(
@@ -27,7 +36,7 @@ pub fn socket_handler(
         match r {
             Ok(room) => actix_web::ws::start(
                 &req,
-                ClientWsActor::new(room.game_addr, state.redis_actor_addr.clone(), query.key.clone(), query.name.clone(), query.room_token.clone()),
+                ClientWsActor::new(room.game_addr, query.key.clone(), query.name.clone()),
             ),
             Err(err) => Err(actix_web::error::ErrorBadRequest(err.to_string())),
         }
@@ -53,7 +62,7 @@ pub fn spectate_handler(
     match r {
         Ok(room) => actix_web::ws::start(
             &req,
-            ClientWsActor::new(room.game_addr, state.redis_actor_addr.clone(), "SPECTATOR".to_string(), "SPECTATOR".to_string(), query.room_token.clone()),
+            ClientWsActor::new(room.game_addr, "SPECTATOR".to_string(), "SPECTATOR".to_string()),
         ),
         Err(err) => Err(actix_web::error::ErrorBadRequest(err.to_string())),
     }
@@ -91,13 +100,6 @@ pub fn create_room_handler(
     match r {
         Ok(room) => {
             let body = serde_json::to_string(&room).unwrap();
-
-            // cache created room info
-            let cache_fields = create_room_fields(&room);
-            let _ = state
-                .redis_actor_addr
-                .send(SetRoomCommand { room_token: room.token.clone(), fields: cache_fields })
-                .wait()?;
             Ok(actix_web::HttpResponse::with_body(StatusCode::OK, body))
         },
         Err(_) => Err(actix_web::error::ErrorBadRequest("Failed to create room")),
@@ -117,12 +119,25 @@ pub fn list_rooms_handler(
     }
 }
 
-fn create_room_fields(room: &RoomCreated) -> HashMap<String, String> {
-    let mut fields = HashMap::new();
-    fields.insert("name".to_string(), room.name.clone());
-    fields.insert("time_limit_seconds".to_string(), room.time_limit_seconds.to_string());
-    fields.insert("max_players".to_string(), room.max_players.to_string());
-    fields.insert("status".to_string(), String::from("READY")); // TODO(haongo) - Handle room's max_players check & room start based on this field
-
-    fields
+pub fn get_room_scoreboard(
+    (_req, state, path): (HttpRequest<AppState>, State<AppState>, Path<String>),
+) -> Result<actix_web::HttpResponse, actix_web::Error> {
+    let room_token = path.into_inner();
+    let result = state.redis_actor_addr.send(GetScoreboardCommand(room_token)).wait().unwrap();
+    match result {
+        Ok(scoreboard) => {
+            let scoreboard_response: ScoreboardResponse = ScoreboardResponse {
+                scoreboard: scoreboard
+                    .into_iter()
+                    .map(|(player_id, total_points)| ScoreboardEntry { player_id, total_points })
+                    .collect(),
+            };
+            let body = serde_json::to_string(&scoreboard_response)?;
+            Ok(actix_web::HttpResponse::with_body(StatusCode::OK, body))
+        },
+        Err(e) => Err(actix_web::error::ErrorBadRequest(format!(
+            "Failed to get room's scoreboard: {}",
+            e
+        ))),
+    }
 }
