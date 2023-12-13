@@ -1,5 +1,5 @@
 use crate::{
-    actors::ClientWsActor,
+    actors::{ClientWsActor, RedisActor},
     game::{Game, TICKS_PER_SECOND},
     models::messages::{ClientStop, PlayerGameCommand, ServerCommand, SetScoreboardCommand},
 };
@@ -12,8 +12,6 @@ use std::{
     time::{Duration, Instant},
 };
 use tokyo::models::*;
-
-use super::RedisActor;
 
 #[derive(Debug)]
 pub struct GameActor {
@@ -41,13 +39,9 @@ pub enum GameLoopCommand {
 }
 
 impl GameActor {
-    pub fn new(config: GameConfig, max_players: u32, time_limit_seconds: u32, room_token: String) -> GameActor {
+    pub fn new(config: GameConfig, redis_actor_addr: Addr<RedisActor>, max_players: u32, time_limit_seconds: u32, room_token: String) -> GameActor {
         let (msg_tx, msg_rx) = channel();
         
-        let redis_uri = crate::APP_CONFIG.redis_uri.clone().unwrap_or("redis://127.0.0.1/".into());
-        let redis_actor = RedisActor::new(redis_uri);
-        let redis_actor_addr = redis_actor.start();
-
         GameActor {
             redis_actor_addr,
             connections: HashMap::new(),

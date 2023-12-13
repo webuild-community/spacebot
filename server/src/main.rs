@@ -59,10 +59,10 @@ fn main() -> Result<(), String> {
     let redis_actor = RedisActor::new(redis_uri);
     let redis_actor_addr = redis_actor.start();
 
-    let game_actor = GameActor::new(APP_CONFIG.game_config, 0, 0, String::from(""));
+    let game_actor = GameActor::new(APP_CONFIG.game_config, redis_actor_addr.clone(), 0, 0, String::from(""));
     let game_actor_addr = game_actor.start();
 
-    let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config);
+    let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config, redis_actor_addr.clone());
     let room_manager_addr = room_manager_actor.start();
 
     let mut server = server::new(move || {
