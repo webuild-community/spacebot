@@ -1,7 +1,7 @@
 use crate::{
-    actors::ClientWsActor,
+    actors::{ClientWsActor, StoreActor},
     game::{Game, TICKS_PER_SECOND},
-    models::messages::{ClientStop, PlayerGameCommand, ServerCommand},
+    models::messages::{ClientStop, PlayerGameCommand, ServerCommand, SetScoreboardCommand, SetPlayerInfoCommand},
 };
 use actix::{Actor, Addr, AsyncContext, Context, Handler, Message};
 use futures::sync::oneshot;
@@ -15,6 +15,7 @@ use tokyo::models::*;
 
 #[derive(Debug)]
 pub struct GameActor {
+    store_actor_addr: Addr<StoreActor>,
     connections: HashMap<String, Addr<ClientWsActor>>,
     spectators: HashSet<Addr<ClientWsActor>>,
     team_names: HashMap<u32, String>,
@@ -26,6 +27,7 @@ pub struct GameActor {
     game_config: GameConfig,
     max_players: u32,
     time_limit_seconds: u32,
+    room_token: String,
 }
 
 #[derive(Debug)]
@@ -37,10 +39,11 @@ pub enum GameLoopCommand {
 }
 
 impl GameActor {
-    pub fn new(config: GameConfig, max_players: u32, time_limit_seconds: u32) -> GameActor {
+    pub fn new(config: GameConfig, store_actor_addr: Addr<StoreActor>, max_players: u32, time_limit_seconds: u32, room_token: String) -> GameActor {
         let (msg_tx, msg_rx) = channel();
-
+        
         GameActor {
+            store_actor_addr,
             connections: HashMap::new(),
             spectators: HashSet::new(),
             team_names: HashMap::new(),
@@ -52,17 +55,20 @@ impl GameActor {
             game_config: config,
             max_players,
             time_limit_seconds,
+            room_token,
         }
     }
 }
 
 fn game_loop(
     game_actor: Addr<GameActor>,
+    store_actor: Addr<StoreActor>,
     msg_chan: Receiver<GameLoopCommand>,
     mut cancel_chan: oneshot::Receiver<()>,
     config: GameConfig,
     max_players: u32,
     time_limit_seconds: u32,
+    room_token: String,
 ) {
     let mut loop_helper = LoopHelper::builder().build_with_target_rate(TICKS_PER_SECOND);
 
@@ -119,6 +125,12 @@ fn game_loop(
             println!("Ending game!");
             status = GameStatus::Finished;
             game_over_at = None;
+
+            // store scoreboard on game end
+            store_actor.do_send(SetScoreboardCommand {
+                room_token: room_token.clone(),
+                scoreboard: game.state.scoreboard.clone(),
+            });
         }
 
         if status.is_running() {
@@ -180,6 +192,8 @@ impl Actor for GameActor {
         info!("Game Actor started!");
         let (cancel_tx, cancel_rx) = oneshot::channel();
         let addr = ctx.address();
+        let store_actor_addr = self.store_actor_addr.clone();
+        let room_token = self.room_token.clone();
 
         // "Take" the receiving end of the channel and give it
         // to the game loop thread
@@ -189,7 +203,7 @@ impl Actor for GameActor {
         let max_players = self.max_players;
         let time_limit_seconds = self.time_limit_seconds;
         std::thread::spawn(move || {
-            game_loop(addr, msg_rx, cancel_rx, config, max_players, time_limit_seconds);
+            game_loop(addr, store_actor_addr, msg_rx, cancel_rx, config, max_players, time_limit_seconds, room_token);
         });
 
         self.cancel_chan = Some(cancel_tx);
@@ -210,6 +224,8 @@ impl Handler<SocketEvent> for GameActor {
             SocketEvent::Join(api_key, team_name, addr) => {
                 let key_clone = api_key.clone();
                 let addr_clone = addr.clone();
+                let cache_api_key = api_key.clone();
+                let cache_team_name = team_name.clone();
 
                 info!("person joined - {:?}", api_key);
 
@@ -250,6 +266,12 @@ impl Handler<SocketEvent> for GameActor {
                     for addr in self.connections.values().chain(self.spectators.iter()) {
                         addr.do_send(ServerToClient::TeamNames(self.team_names.clone()));
                     }
+
+                    // Store player info to DB
+                    let mut fields = HashMap::new();
+                    fields.insert("api_key".to_string(), cache_api_key);
+                    fields.insert("team_name".to_string(), cache_team_name);
+                    self.store_actor_addr.do_send(SetPlayerInfoCommand { player_id, fields });
                 }
             },
             SocketEvent::Leave(api_key, addr) => {

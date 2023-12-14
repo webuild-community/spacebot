@@ -1,6 +1,7 @@
 server_port = 8080
 api_keys = ["webuild"]
 dev_mode = true
+redis_uri = "redis://127.0.0.1/"
 
 [game_config]
 bound_x = 3500

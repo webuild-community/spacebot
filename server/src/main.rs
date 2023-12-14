@@ -14,6 +14,7 @@ mod models;
 use crate::actors::{GameActor, RoomManagerActor};
 use actix::{Actor, Addr, System};
 use actix_web::{http::Method, middleware::Logger, server, App};
+use actors::StoreActor;
 use lazy_static::lazy_static;
 use listenfd::ListenFd;
 use std::collections::HashSet;
@@ -25,10 +26,12 @@ pub struct AppConfig {
     api_keys: HashSet<String>,
     dev_mode: bool,
     game_config: GameConfig,
+    redis_uri: Option<String>,
 }
 
 pub struct AppState {
     game_addr: Addr<GameActor>,
+    store_actor_addr: Addr<StoreActor>,
     room_manager_addr: Addr<RoomManagerActor>,
 }
 
@@ -52,15 +55,20 @@ fn main() -> Result<(), String> {
 
     let actor_system = System::new("meetup-server");
 
-    let game_actor = GameActor::new(APP_CONFIG.game_config, 0, 0);
+    let redis_uri = APP_CONFIG.redis_uri.clone().unwrap_or("redis://127.0.0.1/".into());
+    let store_actor = StoreActor::new(redis_uri);
+    let store_actor_addr = store_actor.start();
+
+    let game_actor = GameActor::new(APP_CONFIG.game_config, store_actor_addr.clone(), 0, 0, String::from(""));
     let game_actor_addr = game_actor.start();
 
-    let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config);
+    let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config, store_actor_addr.clone());
     let room_manager_addr = room_manager_actor.start();
 
     let mut server = server::new(move || {
         let app_state = AppState {
             game_addr: game_actor_addr.clone(),
+            store_actor_addr: store_actor_addr.clone(),
             room_manager_addr: room_manager_addr.clone(),
         };
 
@@ -69,6 +77,9 @@ fn main() -> Result<(), String> {
             .resource("/rooms", |r| {
                 r.method(Method::POST).with(controllers::api::create_room_handler);
                 r.method(Method::GET).with(controllers::api::list_rooms_handler);
+            })
+            .resource("/rooms/{room_token}/scoreboard", |r| {
+                r.method(Method::GET).with(controllers::api::get_room_scoreboard);
             })
             .resource("/socket", |r| {
                 r.method(Method::GET).with(controllers::api::socket_handler);
