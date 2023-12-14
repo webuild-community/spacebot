@@ -1,7 +1,7 @@
 use crate::{
     actors::{ClientWsActor, StoreActor},
     game::{Game, TICKS_PER_SECOND},
-    models::messages::{ClientStop, PlayerGameCommand, ServerCommand, SetScoreboardCommand},
+    models::messages::{ClientStop, PlayerGameCommand, ServerCommand, SetScoreboardCommand, SetPlayerInfoCommand},
 };
 use actix::{Actor, Addr, AsyncContext, Context, Handler, Message};
 use futures::sync::oneshot;
@@ -224,6 +224,8 @@ impl Handler<SocketEvent> for GameActor {
             SocketEvent::Join(api_key, team_name, addr) => {
                 let key_clone = api_key.clone();
                 let addr_clone = addr.clone();
+                let cache_api_key = api_key.clone();
+                let cache_team_name = team_name.clone();
 
                 info!("person joined - {:?}", api_key);
 
@@ -264,6 +266,12 @@ impl Handler<SocketEvent> for GameActor {
                     for addr in self.connections.values().chain(self.spectators.iter()) {
                         addr.do_send(ServerToClient::TeamNames(self.team_names.clone()));
                     }
+
+                    // Store player info to DB
+                    let mut fields = HashMap::new();
+                    fields.insert("api_key".to_string(), cache_api_key);
+                    fields.insert("team_name".to_string(), cache_team_name);
+                    self.store_actor_addr.do_send(SetPlayerInfoCommand { player_id, fields });
                 }
             },
             SocketEvent::Leave(api_key, addr) => {

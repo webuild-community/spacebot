@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{
-    actors::{ClientWsActor, CreateRoom, JoinRoom, ListRooms},
-    models::messages::{GetScoreboardCommand, ServerCommand},
+    actors::{ClientWsActor, CreateRoom, JoinRoom, ListRooms, StoreActor},
+    models::messages::{GetMultiplePlayerInfo, GetScoreboardCommand, ServerCommand},
     AppState,
 };
+use actix::Addr;
 use actix_web::{http::StatusCode, HttpRequest, Path, Query, State};
 use futures::Future;
 
@@ -13,10 +16,18 @@ pub struct QueryString {
     name: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct PlayerInfo {
+    api_key: String,
+    team_name: String,
+}
+
 #[derive(Serialize, Deserialize)]
-struct ScoreboardEntry {
+pub struct ScoreboardEntry {
     player_id: u32,
     total_points: u32,
+    api_key: String,
+    team_name: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -119,6 +130,23 @@ pub fn list_rooms_handler(
     }
 }
 
+fn get_scoreboard_player_info(player_ids: Vec<u32>, addr: Addr<StoreActor>) -> Result<HashMap<u32, PlayerInfo>, actix_web::Error> {
+    let result: Result<HashMap<u32, String>, redis::RedisError> =
+        addr.send(GetMultiplePlayerInfo { player_ids }).wait().unwrap();
+
+    match result {
+        Ok(players) => {
+            let mut player_infos: HashMap<u32, PlayerInfo> = HashMap::new();
+            for (id, player_data_json) in players {
+                let player_info: PlayerInfo = serde_json::from_str(&player_data_json).expect("Failed to deserialize JSON");
+                player_infos.insert(id, player_info);
+            }
+            Ok(player_infos)
+        },
+        Err(_) => Err(actix_web::error::ErrorBadRequest(String::from("failed to query player info data")))
+    }
+}
+
 pub fn get_room_scoreboard(
     (_req, state, path): (HttpRequest<AppState>, State<AppState>, Path<String>),
 ) -> Result<actix_web::HttpResponse, actix_web::Error> {
@@ -126,12 +154,34 @@ pub fn get_room_scoreboard(
     let result = state.store_actor_addr.send(GetScoreboardCommand(room_token)).wait().unwrap();
     match result {
         Ok(scoreboard) => {
+            let player_ids: Vec<u32> = scoreboard.keys().cloned().collect();
+            let player_info_map = get_scoreboard_player_info(player_ids, state.store_actor_addr.clone()).unwrap();
             let scoreboard_response: ScoreboardResponse = ScoreboardResponse {
                 scoreboard: scoreboard
                     .into_iter()
-                    .map(|(player_id, total_points)| ScoreboardEntry { player_id, total_points })
+                    .map(|(player_id, total_points)| {
+                        player_info_map
+                            .get(&player_id)
+                            .map_or_else(
+                                || {
+                                    info!("Failed to query player info by player_id");
+                                    ScoreboardEntry {
+                                        player_id,
+                                        total_points,
+                                        api_key: String::from(""),
+                                        team_name: String::from(""),
+                                    }
+                                },
+                                |info| ScoreboardEntry {
+                                    player_id,
+                                    total_points,
+                                    api_key: info.api_key.clone(),
+                                    team_name: info.team_name.clone(),
+                                },
+                            )
+                    })
                     .collect(),
-            };
+            };        
             let body = serde_json::to_string(&scoreboard_response)?;
             Ok(actix_web::HttpResponse::with_body(StatusCode::OK, body))
         },

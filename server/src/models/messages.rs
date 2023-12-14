@@ -27,3 +27,16 @@ pub struct SetScoreboardCommand {
 #[derive(Message)]
 #[rtype(result = "Result<HashMap<u32, u32>, redis::RedisError>")]
 pub struct GetScoreboardCommand(pub String);
+
+#[derive(Message)]
+#[rtype(result = "Result<String, redis::RedisError>")]
+pub struct SetPlayerInfoCommand {
+    pub player_id: u32,
+    pub fields: HashMap<String, String>, // Use a HashMap to represent multiple fields
+}
+
+#[derive(Message)]
+#[rtype(result = "Result<HashMap<u32, String>, redis::RedisError>")]
+pub struct GetMultiplePlayerInfo {
+    pub player_ids: Vec<u32>,
+}

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use actix::prelude::*;
 use redis::{Client, Commands, Connection};
 
-use crate::models::messages::{SetScoreboardCommand, GetScoreboardCommand};
+use crate::models::messages::{GetScoreboardCommand, SetPlayerInfoCommand, SetScoreboardCommand, GetMultiplePlayerInfo};
 
 #[derive(Debug)]
 pub struct StoreActor {
@@ -47,7 +47,44 @@ impl Handler<GetScoreboardCommand> for StoreActor {
             let total_points = total_points_str.parse::<f64>().unwrap_or_default() as u32;
             result.insert(player_id, total_points);
         }
-        
+
         Ok(result)
+    }
+}
+
+impl Handler<SetPlayerInfoCommand> for StoreActor {
+    type Result = Result<String, redis::RedisError>;
+
+    fn handle(&mut self, msg: SetPlayerInfoCommand, _: &mut Self::Context) -> Self::Result {
+        let mut con: Connection = self.client.get_connection()?;
+
+        // Use hset_multiple to set multiple fields at the same time
+        let query_key = format!("player:{}:info", msg.player_id);
+        let fields: Vec<(&str, &str)> =
+            msg.fields.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+        let result: redis::RedisResult<()> = con.hset_multiple(query_key, &fields);
+
+        result
+            .map_err(|e| e.into())
+            .map(|_| format!("Fields are set for player_id {}", msg.player_id))
+    }
+}
+
+impl Handler<GetMultiplePlayerInfo> for StoreActor {
+    type Result = Result<HashMap<u32, String>, redis::RedisError>;
+
+    fn handle(&mut self, msg: GetMultiplePlayerInfo, _: &mut Self::Context) -> Self::Result {
+        let mut con: Connection = self.client.get_connection()?;
+        let mut results = HashMap::new();
+        for key in msg.player_ids {
+            let hash_key: String = format!("player:{}:info", key);
+            let player_info: HashMap<String, String> = con.hgetall(&hash_key)?;
+
+            // If you need to filter out empty rooms, you can add a condition here.
+            // For example, you can check if room_data is not empty before inserting into results.
+            results.insert(key.clone(), serde_json::to_string(&player_info).unwrap());
+        }
+
+        Ok(results)
     }
 }
