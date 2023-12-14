@@ -1,5 +1,5 @@
 use crate::{
-    actors::{ClientWsActor, RedisActor},
+    actors::{ClientWsActor, StoreActor},
     game::{Game, TICKS_PER_SECOND},
     models::messages::{ClientStop, PlayerGameCommand, ServerCommand, SetScoreboardCommand},
 };
@@ -15,7 +15,7 @@ use tokyo::models::*;
 
 #[derive(Debug)]
 pub struct GameActor {
-    redis_actor_addr: Addr<RedisActor>,
+    store_actor_addr: Addr<StoreActor>,
     connections: HashMap<String, Addr<ClientWsActor>>,
     spectators: HashSet<Addr<ClientWsActor>>,
     team_names: HashMap<u32, String>,
@@ -39,11 +39,11 @@ pub enum GameLoopCommand {
 }
 
 impl GameActor {
-    pub fn new(config: GameConfig, redis_actor_addr: Addr<RedisActor>, max_players: u32, time_limit_seconds: u32, room_token: String) -> GameActor {
+    pub fn new(config: GameConfig, store_actor_addr: Addr<StoreActor>, max_players: u32, time_limit_seconds: u32, room_token: String) -> GameActor {
         let (msg_tx, msg_rx) = channel();
         
         GameActor {
-            redis_actor_addr,
+            store_actor_addr,
             connections: HashMap::new(),
             spectators: HashSet::new(),
             team_names: HashMap::new(),
@@ -62,7 +62,7 @@ impl GameActor {
 
 fn game_loop(
     game_actor: Addr<GameActor>,
-    redis_actor: Addr<RedisActor>,
+    store_actor: Addr<StoreActor>,
     msg_chan: Receiver<GameLoopCommand>,
     mut cancel_chan: oneshot::Receiver<()>,
     config: GameConfig,
@@ -127,7 +127,7 @@ fn game_loop(
             game_over_at = None;
 
             // store scoreboard on game end
-            redis_actor.do_send(SetScoreboardCommand {
+            store_actor.do_send(SetScoreboardCommand {
                 room_token: room_token.clone(),
                 scoreboard: game.state.scoreboard.clone(),
             });
@@ -192,7 +192,7 @@ impl Actor for GameActor {
         info!("Game Actor started!");
         let (cancel_tx, cancel_rx) = oneshot::channel();
         let addr = ctx.address();
-        let redis_actor_addr = self.redis_actor_addr.clone();
+        let store_actor_addr = self.store_actor_addr.clone();
         let room_token = self.room_token.clone();
 
         // "Take" the receiving end of the channel and give it
@@ -203,7 +203,7 @@ impl Actor for GameActor {
         let max_players = self.max_players;
         let time_limit_seconds = self.time_limit_seconds;
         std::thread::spawn(move || {
-            game_loop(addr, redis_actor_addr, msg_rx, cancel_rx, config, max_players, time_limit_seconds, room_token);
+            game_loop(addr, store_actor_addr, msg_rx, cancel_rx, config, max_players, time_limit_seconds, room_token);
         });
 
         self.cancel_chan = Some(cancel_tx);

@@ -6,22 +6,22 @@ use redis::{Client, Commands, Connection};
 use crate::models::messages::{SetScoreboardCommand, GetScoreboardCommand};
 
 #[derive(Debug)]
-pub struct RedisActor {
+pub struct StoreActor {
     client: Client,
 }
 
-impl RedisActor {
-    pub fn new(redis_url: String) -> RedisActor {
+impl StoreActor {
+    pub fn new(redis_url: String) -> StoreActor {
         let client = Client::open(redis_url).expect("Failed to create Redis client");
-        RedisActor { client }
+        StoreActor { client }
     }
 }
 
-impl Actor for RedisActor {
+impl Actor for StoreActor {
     type Context = Context<Self>;
 }
 
-impl Handler<SetScoreboardCommand> for RedisActor {
+impl Handler<SetScoreboardCommand> for StoreActor {
     type Result = Result<(), redis::RedisError>;
 
     fn handle(&mut self, msg: SetScoreboardCommand, _: &mut Self::Context) -> Self::Result {
@@ -34,7 +34,7 @@ impl Handler<SetScoreboardCommand> for RedisActor {
     }
 }
 
-impl Handler<GetScoreboardCommand> for RedisActor {
+impl Handler<GetScoreboardCommand> for StoreActor {
     type Result = Result<HashMap<u32, u32>, redis::RedisError>;
 
     fn handle(&mut self, msg: GetScoreboardCommand, _: &mut Self::Context) -> Self::Result {

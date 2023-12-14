@@ -14,7 +14,7 @@ mod models;
 use crate::actors::{GameActor, RoomManagerActor};
 use actix::{Actor, Addr, System};
 use actix_web::{http::Method, middleware::Logger, server, App};
-use actors::RedisActor;
+use actors::StoreActor;
 use lazy_static::lazy_static;
 use listenfd::ListenFd;
 use std::collections::HashSet;
@@ -31,7 +31,7 @@ pub struct AppConfig {
 
 pub struct AppState {
     game_addr: Addr<GameActor>,
-    redis_actor_addr: Addr<RedisActor>,
+    store_actor_addr: Addr<StoreActor>,
     room_manager_addr: Addr<RoomManagerActor>,
 }
 
@@ -56,19 +56,19 @@ fn main() -> Result<(), String> {
     let actor_system = System::new("meetup-server");
 
     let redis_uri = APP_CONFIG.redis_uri.clone().unwrap_or("redis://127.0.0.1/".into());
-    let redis_actor = RedisActor::new(redis_uri);
-    let redis_actor_addr = redis_actor.start();
+    let store_actor = StoreActor::new(redis_uri);
+    let store_actor_addr = store_actor.start();
 
-    let game_actor = GameActor::new(APP_CONFIG.game_config, redis_actor_addr.clone(), 0, 0, String::from(""));
+    let game_actor = GameActor::new(APP_CONFIG.game_config, store_actor_addr.clone(), 0, 0, String::from(""));
     let game_actor_addr = game_actor.start();
 
-    let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config, redis_actor_addr.clone());
+    let room_manager_actor = actors::RoomManagerActor::new(APP_CONFIG.game_config, store_actor_addr.clone());
     let room_manager_addr = room_manager_actor.start();
 
     let mut server = server::new(move || {
         let app_state = AppState {
             game_addr: game_actor_addr.clone(),
-            redis_actor_addr: redis_actor_addr.clone(),
+            store_actor_addr: store_actor_addr.clone(),
             room_manager_addr: room_manager_addr.clone(),
         };
 

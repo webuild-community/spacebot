@@ -123,7 +123,7 @@ pub fn get_room_scoreboard(
     (_req, state, path): (HttpRequest<AppState>, State<AppState>, Path<String>),
 ) -> Result<actix_web::HttpResponse, actix_web::Error> {
     let room_token = path.into_inner();
-    let result = state.redis_actor_addr.send(GetScoreboardCommand(room_token)).wait().unwrap();
+    let result = state.store_actor_addr.send(GetScoreboardCommand(room_token)).wait().unwrap();
     match result {
         Ok(scoreboard) => {
             let scoreboard_response: ScoreboardResponse = ScoreboardResponse {

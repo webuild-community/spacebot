@@ -1,4 +1,4 @@
-use crate::actors::{GameActor, RedisActor};
+use crate::actors::{GameActor, StoreActor};
 use actix::prelude::*;
 use rand::{distributions::Alphanumeric, Rng};
 use std::{
@@ -12,7 +12,7 @@ const TOKEN_LENGTH: usize = 8;
 // RoomManagerActor is responsible for creating and managing rooms
 pub struct RoomManagerActor {
     config: GameConfig,
-    redis_actor_addr: Addr<RedisActor>,
+    store_actor_addr: Addr<StoreActor>,
     id_counter: u32,
     rooms: HashMap<String, Room>,
 }
@@ -30,7 +30,7 @@ struct Room {
 impl Room {
     pub fn new(
         config: &GameConfig,
-        redis_actor_addr: Addr<RedisActor>,
+        store_actor_addr: Addr<StoreActor>,
         id: u32,
         name: String,
         max_players: u32,
@@ -39,15 +39,15 @@ impl Room {
     ) -> Room {
         let game_cfg = GameConfig { bound_x: config.bound_x, bound_y: config.bound_y };
 
-        let game_actor = GameActor::new(game_cfg, redis_actor_addr, max_players, time_limit_seconds, token.clone());
+        let game_actor = GameActor::new(game_cfg, store_actor_addr, max_players, time_limit_seconds, token.clone());
         let game_actor_addr = game_actor.start();
         Room { id, name, max_players, time_limit_seconds, token, game: game_actor_addr }
     }
 }
 
 impl RoomManagerActor {
-    pub fn new(cfg: GameConfig, redis_actor_addr: Addr<RedisActor>) -> RoomManagerActor {
-        RoomManagerActor { config: cfg, id_counter: 0, rooms: HashMap::new(), redis_actor_addr: redis_actor_addr.clone() }
+    pub fn new(cfg: GameConfig, store_actor_addr: Addr<StoreActor>) -> RoomManagerActor {
+        RoomManagerActor { config: cfg, id_counter: 0, rooms: HashMap::new(), store_actor_addr }
     }
 
     pub fn create_room(
@@ -68,7 +68,7 @@ impl RoomManagerActor {
             token.clone(),
             Room::new(
                 &self.config,
-                self.redis_actor_addr.clone(),
+                self.store_actor_addr.clone(),
                 self.id_counter,
                 name.to_string(),
                 max_players,
