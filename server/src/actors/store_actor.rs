@@ -79,9 +79,6 @@ impl Handler<GetMultiplePlayerInfo> for StoreActor {
         for key in msg.player_ids {
             let hash_key: String = format!("player:{}:info", key);
             let player_info: HashMap<String, String> = con.hgetall(&hash_key)?;
-
-            // If you need to filter out empty rooms, you can add a condition here.
-            // For example, you can check if room_data is not empty before inserting into results.
             results.insert(key.clone(), serde_json::to_string(&player_info).unwrap());
         }
 
